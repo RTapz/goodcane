@@ -157,7 +157,7 @@ There are no passwords. All access uses random tokens whose hashes are stored, n
 - **BR-R3** The app never sends. A due reminder creates a `reminders` row with status `queued`. The owner presses Send, which opens a prefilled `wa.me` chat (SMS: show text to copy), and the row becomes `sent`.
 - **BR-R4** Reminder due time: a sample number of days before cut-off (sample: 2) for the customer's chosen frequency.
 - **BR-R5** **One chase maximum:** at most one reminder per customer per drop. If there is no reply and no order, do not send another for that drop.
-- **BR-R6** If an opted-in customer has not started a chat 24 hours after opting in, show the owner a single optional "confirm" nudge, at most once per opt-in event.
+- **BR-R6** If an opted-in customer has not started a chat 24 hours after opting in, show the owner a single optional "confirm" nudge, at most once per opt-in event. (Reminders slice: this needs its own column, probably `customers.confirm_nudge_sent_at`; not in the first migration.)
 - **BR-R7** The reminder queue query must exclude: opted out, channel None, inactive for the retention period, deleted, already ordered for that drop, reminder already sent for that drop. Enforce this in the query, not only in the UI.
 - **BR-R8** "Stop reminders" writes an opt-out event immediately. Resubscribe is available only to the customer, on C9, and is a fresh explicit opt-in. The business can never re-enable it.
 
@@ -260,7 +260,7 @@ Every table that holds sample data has `is_sample boolean`.
 | **settings** | key, value |
 | **drops** | id, drop_at, cut_off_at, capacity, status, units_made, unplanned_sold, units_wasted, closed_at |
 | **menu_items** | id, name, taste_group, size, price_pesewas (sample), capacity_weight, is_special, active |
-| **customers** | id, first_name, phone, reminder_channel, reminder_frequency, last_active_at, deleted_at |
+| **customers** | id, first_name, phone (indexed, not unique: the same phone may belong to several customer records), reminder_channel, reminder_frequency, last_active_at, deleted_at |
 | **access_tokens** | id, customer_id, kind (link, session, reminder), token_hash, expires_at, revoked_at, drop_id (nullable) |
 | **consent_events** | id, customer_id, action (opt_in, opt_out), channel, frequency, source, created_at (append-only) |
 | **orders** | id, customer_id (nullable after purge), drop_id, status, fulfilment, address, area, fee_pesewas, total_pesewas, hold_expires_at, created_at, paid_at, refund_due |
@@ -311,7 +311,7 @@ Key endpoints (indicative):
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/drops/next` | Next open drop, spaces left |
-| `POST /api/orders` | Create a `requested` order, create or find customer and link |
+| `POST /api/orders` | Create a `requested` order. Use the customer from the valid session, otherwise create a new customer and link. Never look up a customer by phone at order time (it would expose their history, BR-L7) |
 | `POST /api/orders/:id/pay-start` | Create hold |
 | `POST /api/payments/simulate` | Simulated provider callback |
 | `GET /api/me` | Customer from session cookie |

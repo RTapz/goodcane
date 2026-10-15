@@ -13,4 +13,6 @@ Before doing anything in this repo, read `docs/PROJECT_SPEC.md` and follow every
 
 - Package manager: pnpm. Scripts: `pnpm dev`, `pnpm test`, `pnpm typecheck`, `pnpm seed`, `pnpm retention`.
 - TypeScript is pinned to 6.x because `vue-tsc` cannot load TypeScript 7 yet.
+- Drizzle is pinned to the stable 0.x line (`drizzle-orm` 0.45.4, `drizzle-kit` 0.31.11) with `postgres` 3.4.9. The Drizzle website documents v1 by default; use 0.x conventions. Do not move to a release candidate without asking.
+- Database: schema in `server/db/schema.ts`, migrations in `server/db/migrations`. Change the schema, then `pnpm db:generate`, review the SQL, then `pnpm db:migrate`. Never edit an applied migration.
 - Run `pnpm typecheck` and `pnpm test` before calling any slice finished, and commit after each slice.
