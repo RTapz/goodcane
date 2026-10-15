@@ -1,0 +1,30 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme static {
+  /* Brand green (sample palette, not GoodCane's artwork) */
+  --color-cane-50: #f0f9f1;
+  --color-cane-100: #dbf0de;
+  --color-cane-200: #b9e1c0;
+  --color-cane-300: #8acb96;
+  --color-cane-400: #58ad68;
+  --color-cane-500: #36904a;
+  --color-cane-600: #267439;
+  --color-cane-700: #1f5c2f;
+  --color-cane-800: #1c4a28;
+  --color-cane-900: #183d23;
+  --color-cane-950: #0b2212;
+
+  /* Cream for page backgrounds */
+  --color-cream-50: #fffdf7;
+  --color-cream-100: #fdf8ea;
+  --color-cream-200: #faf0d2;
+  --color-cream-300: #f5e4b0;
+  --color-cream-400: #eed389;
+  --color-cream-500: #e5bf62;
+  --color-cream-600: #d3a042;
+  --color-cream-700: #b07e35;
+  --color-cream-800: #8f6431;
+  --color-cream-900: #75532b;
+  --color-cream-950: #432c15;
+}

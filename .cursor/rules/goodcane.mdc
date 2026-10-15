@@ -1,0 +1,61 @@
+---
+description: GoodCane Drops project rules. Source of truth, hard constraints, conventions and learning boundaries.
+alwaysApply: true
+---
+
+# GoodCane Drops: Cursor rules
+
+## Source of truth
+- Read @docs/PROJECT_SPEC.md before building or changing any feature. It wins over your assumptions and over earlier chat history.
+- If a request conflicts with the spec, stop and say so. Propose the spec change first and wait for approval. Update the spec before the code when a decision changes.
+- Spec priorities are P0, P1, P2. Finish P0 vertical slices before P1. Do not add features that are not in the spec. A finished customer journey beats more features.
+- Build in small vertical slices (one finished journey step at a time). Commit after each slice with a clear message, for example `feat(c7): same again screen`.
+
+## Hard constraints (never break)
+- Sample data only. Label every placeholder "Sample" or "Demo". Never invent real customers, sales, stock, prices, delivery areas or payment details.
+- No live payments. No payment provider SDKs, keys or real integration code. Payment is the simulation in the spec.
+- Never send real messages. No WhatsApp, SMS or email sending code. Reminders go to the outbox; the owner action only opens a prefilled chat link.
+- In demo mode every `wa.me` link must use the `DEMO_WHATSAPP_NUMBER` environment variable. Never hard-code any real phone number, including GoodCane's.
+- Reminders are opt-in, unticked by default, with an equal "None" option. Cancel and opt-out are always one tap away.
+- Collect only first name, phone, order history, optional reminder choice, delivery address (delivery only) and consent events. Do not add analytics, trackers, email or any other personal data.
+- No AI features. No health or certification claims in copy.
+- Keep the DEMO banner on every page. Use a plain text wordmark; do not copy GoodCane's logo or artwork.
+
+## Domain rules to respect (details in the spec, section 5)
+- cut-off = drop time minus lead time. Capacity counts paid and confirmed units plus active holds. Requests use no capacity.
+- Order states: requested, paid_confirmed, fulfilled, cancelled, expired. Confirmation happens when simulated payment succeeds.
+- Capacity checks and holds run inside one database transaction. Payment processing is idempotent by payment reference.
+- When a drop is full, ask the customer first (move, waitlist, cancel). Never reschedule silently. Record turned-away units.
+- Private links, sessions and reminder links are random tokens; store only SHA-256 hashes. Never show order history from a phone number alone.
+- The reminder queue exclusions (opted out, inactive, deleted, already ordered, already reminded) are enforced in the query, not only in the UI. One reminder per customer per drop at most.
+- Planned share, forecasts and accuracy are calculated, not stored.
+
+## Architecture and code
+- Nuxt (current stable, Vue 3), TypeScript strict, Tailwind with Nuxt UI, PostgreSQL with Drizzle, Zod at server boundaries, Vitest, pnpm.
+- Check the official docs for current Nuxt, Tailwind and Drizzle conventions before generating configuration. Do not rely on memory.
+- Business logic lives in `server/domain` as pure functions with unit tests. Route handlers in `server/api` only validate, call the domain and return JSON. Components contain no business rules.
+- Money is stored as integer pesewas and shown as GH₵. Times are stored in UTC and displayed in Africa/Accra.
+- Never log phone numbers or raw tokens. Keep secrets in `.env`; commit only `.env.example`.
+- In any raw SQL, always put double quotes around table names and column names.
+- Add a dependency only when needed, and say why in one sentence.
+
+## UI
+- Mobile first. Design for a 360px wide screen, single column, primary action anchored at the bottom, tap targets at least 44px.
+- Every data view needs loading, empty and error states. Every input needs a visible label. Aim for WCAG AA colour contrast.
+- Keep pages light: no heavy images, lazy-load anything below the fold, no third-party trackers.
+- Copy is British English, friendly and plain. Brand direction is green and cream.
+- C7 "Same again?" must meet its acceptance criteria in the spec (section 6.3) before it is called done.
+
+## Testing and definition of done
+- Use the fixtures in the spec for forecast, cut-off, capacity, lifecycle, payment idempotency, reminder queue and retention tests.
+- A feature is done only when: it works at 360px width, handles loading, empty and error states, has tests for its business rules, matches the spec, and keeps the DEMO labelling. Run typecheck and tests before saying it is finished.
+
+## Learning boundaries (Ryan is learning from this build)
+- Do NOT write the implementation of `server/domain/forecast/*` (weighted average, pace projection, MAPE, WAPE, bias, naive benchmark) or the seed script's weighted day-picking function unless Ryan explicitly asks you to in that message. Instead explain the concept in plain language, outline the steps, write tests from the spec fixtures if asked, and review Ryan's code.
+- When you introduce a library, pattern or technical term, give a two-sentence plain-language explanation first, then the code.
+- For other core logic, prefer to explain the approach and ask one guiding question before giving a full solution when Ryan is working something out. If Ryan asks for the full solution, give it.
+
+## Style
+- Never use em dashes anywhere: code, comments, copy, commit messages or replies. Use commas, colons or full stops.
+- Write British English in comments and copy.
+- Be concise. Summarise what changed in one or two sentences after finishing a slice.
