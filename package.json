@@ -10,7 +10,7 @@
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
     "test": "vitest run",
-    "seed": "tsx server/db/seed.ts",
+    "seed": "tsx server/db/seed/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },

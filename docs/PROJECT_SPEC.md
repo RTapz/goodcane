@@ -253,7 +253,7 @@ A persistent DEMO banner appears on all pages. Mobile first: single column at 36
 
 ## 7. Data model (conceptual)
 
-Every table that holds sample data has `is_sample boolean`.
+Every table that holds sample data has `is_sample boolean`. In `DEMO_MODE` every row the app creates is flagged `is_sample = true`, so a reseed fully resets the demo.
 
 | Table | Key fields |
 |---|---|
@@ -324,16 +324,19 @@ Security basics: HTTPS only, Zod validation, simple rate limit on order creation
 
 ## 9. Seed data (`pnpm seed`)
 
-Idempotent: inside one transaction delete rows where `is_sample` is true, then insert. Uses a fixed random seed so every run is identical. Dates are relative to today.
+Idempotent: inside one transaction delete rows where `is_sample` is true (children before parents), then insert. Uses a fixed random seed so every run is identical (with the same `now`, floored to the hour). Dates are relative to now and ignore the `drop_days` setting on purpose.
 
-- **8 past closed drops** (4 weeks, two a week), planned units gently growing roughly from 38 to 56 with noise. One drop hit capacity and has turned-away rows.
-- **About 25 sample customers** named "Sample Customer 01" and so on, with obviously fake phone values (for example 0000000001 to 0000000025). About 40% order on several drops. Each has a stored "usual" via their last order.
-- **Order arrival times** follow the pace curve. Convert the cumulative table (5 days: 20%, 4: 35%, 3: 60%, 2: 80%, 1: 92%, 0: 100%) into the share arriving each day (20, 15, 25, 20, 12, 8) and pick each order's day by weighted random choice. Add small per-drop noise so no two drops are identical.
-- **Statuses:** mostly fulfilled, about 5 to 8% cancelled, and some requests expired unpaid (so the request-to-paid rate is realistic).
+- **Dates:** the live drop's cut-off is now plus 3 days and its drop is 3 days after that; the further open drop is 4 days later. The newest completed drop is 7 days before the live drop (the slot in between is skipped so every completed drop is really in the past), then completed drops step back alternately 3 and 4 days.
+- **8 past completed drops**, planned units gently growing roughly from 38 to 56 with noise. One drop hit capacity: the newest completed drop has a sample capacity of 50 (the others 70), demand of about 56, and turned-away rows for the excess.
+- **40 sample customers** (matching the pilot size in section 10) named "Sample Customer 01" to "Sample Customer 40", with obviously fake phone values 0000000001 to 0000000040. Each customer is created by their first order, never matched by phone. About 40% order on several drops. Each has a stored "usual" via their last order.
+- **Order arrival times** follow the pace curve. Convert the cumulative table (5 days: 20%, 4: 35%, 3: 60%, 2: 80%, 1: 92%, 0: 100%) into the share arriving each day (20, 15, 25, 20, 12, 8) and pick each order's day by weighted random choice (`pickDay`). Day d means the 24-hour bucket from cut-off minus (d+1) days up to cut-off minus d days. Add small per-drop noise so no two drops are identical.
+- **Statuses:** mostly fulfilled, about 5 to 8% cancelled (all with `refund_due`, BR-O4), and some requests expired unpaid (so the request-to-paid rate is realistic). Every status change has an `order_history` row; every paid order has a payment row.
 - **Close batch numbers** per past drop: unplanned sold between about 8 and 16, small waste, and made = orders sold + unplanned + wasted.
-- **Live upcoming drop** about 3 days before cut-off with about 30 paid units and about 10 requested units, plus one further open drop.
+- **Live upcoming drop** about 3 days before cut-off with about 30 paid units and about 10 requested units, plus one further open drop with a few paid orders and no requests.
 - **A few opted-in reminders** across channels and frequencies and a few outbox rows. Nothing is ever sent.
-- **Verification step** after seeding: row counts, the made-equals-sold identity, and that the learned pace table is close to the one used to generate the data.
+- **Not seeded yet:** `access_tokens` and `forecast_snapshots`.
+- **Verification step** inside the same transaction (any failure rolls everything back): row counts, 12 settings, the made-equals-sold identity, and that the learned pace table is within 8 percentage points of the one used to generate the data. Drops that hit capacity are left out of the learned pace table, because turning customers away cuts off the late orders and would skew the shape.
+- **Later (C6/C7 slice, not built yet):** a "Demo Customer A" with a fixed, printed sample link, so the demo video is repeatable.
 
 ## 10. Measurement (summary; full plan is deliverable 4)
 

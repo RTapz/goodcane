@@ -1,0 +1,200 @@
+import { describe, expect, it } from 'vitest'
+import {
+  buildSampleData,
+  CAPPED_DROP_CAPACITY,
+  SAMPLE_CUSTOMER_COUNT,
+  SEED,
+  type SampleData
+} from '../../../server/db/seed/build'
+import { createRand, randInt, type Rand } from '../../../server/db/seed/random'
+
+const DAY = 24 * 60 * 60 * 1000
+const now = new Date('2026-10-15T09:00:00Z')
+
+// A plain uniform stand-in for pickDay (not the weighted one), so these tests
+// exercise every bucket without depending on Ryan's implementation.
+const uniformDay = (rand: Rand) => randInt(rand, 0, 5)
+
+function build(pickDay?: (rand: Rand) => number): SampleData {
+  return buildSampleData({ rand: createRand(SEED), now, pickDay })
+}
+
+function unitsByOrder(data: SampleData): Map<string, number> {
+  const weights = new Map(data.menuItems.map((m) => [m.id, m.capacityWeight]))
+  const units = new Map<string, number>()
+  for (const line of data.orderItems) {
+    units.set(line.orderId, (units.get(line.orderId) ?? 0) + line.quantity * (weights.get(line.menuItemId) ?? 0))
+  }
+  return units
+}
+
+describe.each([
+  ['the pickDay stub', undefined],
+  ['a uniform day picker', uniformDay]
+])('buildSampleData with %s', (_name, pickDay) => {
+  const data = build(pickDay)
+  const units = unitsByOrder(data)
+  const completed = data.drops.filter((d) => d.status === 'completed')
+  const open = data.drops.filter((d) => d.status === 'open')
+
+  it('gives identical data for the same seed and now', () => {
+    expect(build(pickDay)).toEqual(data)
+  })
+
+  it('creates 8 completed drops and 2 open ones, all dated relative to now', () => {
+    expect(completed).toHaveLength(8)
+    expect(open).toHaveLength(2)
+    const [live, further] = open
+    expect(live?.cutOffAt.getTime()).toBe(now.getTime() + 3 * DAY)
+    expect(live?.dropAt.getTime()).toBe(now.getTime() + 6 * DAY)
+    expect(further?.dropAt.getTime()).toBe(now.getTime() + 10 * DAY)
+    for (const drop of completed) {
+      expect(drop.dropAt.getTime()).toBeLessThan(now.getTime())
+    }
+    const gaps = completed.slice(1).map((d, i) => (d.dropAt.getTime() - (completed[i]?.dropAt.getTime() ?? 0)) / DAY)
+    // Oldest first; stepping back from the newest drop goes 3 days, then 4, alternately.
+    expect(gaps).toEqual([3, 4, 3, 4, 3, 4, 3])
+  })
+
+  it('makes the 24-item sample menu', () => {
+    expect(data.menuItems).toHaveLength(24)
+    expect(data.menuItems.filter((m) => m.size === '4l').map((m) => m.name)).toEqual([
+      'Raw cane',
+      'Passionfruit cane',
+      'Ginger-lemon cane',
+      'Lemon-mint cane'
+    ])
+  })
+
+  it('creates 40 customers with unique fake phones, about 40% ordering on several drops', () => {
+    expect(data.customers).toHaveLength(SAMPLE_CUSTOMER_COUNT)
+    expect(new Set(data.customers.map((c) => c.phone)).size).toBe(SAMPLE_CUSTOMER_COUNT)
+    const paidDrops = new Map<string, Set<string>>()
+    for (const o of data.orders) {
+      if (o.paidAt && o.customerId) {
+        const set = paidDrops.get(o.customerId) ?? new Set<string>()
+        set.add(o.dropId)
+        paidDrops.set(o.customerId, set)
+      }
+    }
+    const several = [...paidDrops.values()].filter((s) => s.size > 1).length
+    expect(several / SAMPLE_CUSTOMER_COUNT).toBeGreaterThanOrEqual(0.35)
+    expect(several / SAMPLE_CUSTOMER_COUNT).toBeLessThanOrEqual(0.45)
+  })
+
+  it('never lets fulfilled units exceed capacity, and the capped drop is exactly full with turned-away rows', () => {
+    for (const drop of completed) {
+      const sold = data.orders
+        .filter((o) => o.dropId === drop.id && o.status === 'fulfilled')
+        .reduce((sum, o) => sum + (units.get(o.id) ?? 0), 0)
+      expect(sold).toBeLessThanOrEqual(drop.capacity)
+      expect(drop.unitsMade).toBe(sold + (drop.unplannedSold ?? 0) + (drop.unitsWasted ?? 0))
+    }
+    const capped = completed.filter((d) => d.capacity === CAPPED_DROP_CAPACITY)
+    expect(capped).toHaveLength(1)
+    const cappedSold = data.orders
+      .filter((o) => o.dropId === capped[0]?.id && o.status === 'fulfilled')
+      .reduce((sum, o) => sum + (units.get(o.id) ?? 0), 0)
+    expect(cappedSold).toBe(CAPPED_DROP_CAPACITY)
+    const turnedAway = data.turnedAway.filter((t) => t.dropId === capped[0]?.id)
+    expect(turnedAway.length).toBeGreaterThanOrEqual(2)
+    expect(data.turnedAway.every((t) => t.dropId === capped[0]?.id)).toBe(true)
+  })
+
+  it('places every past-drop payment inside a pickDay bucket, and nothing in the future', () => {
+    const cutOffs = new Map(data.drops.map((d) => [d.id, d.cutOffAt.getTime()]))
+    for (const o of data.orders) {
+      if (!o.paidAt) continue
+      expect(o.paidAt.getTime()).toBeLessThan(now.getTime())
+      const daysBefore = ((cutOffs.get(o.dropId) ?? 0) - o.paidAt.getTime()) / DAY
+      const drop = data.drops.find((d) => d.id === o.dropId)
+      if (drop?.status === 'completed') {
+        expect(daysBefore).toBeGreaterThan(0)
+        expect(daysBefore).toBeLessThanOrEqual(6)
+      }
+    }
+  })
+
+  it('gives the live drop about 30 paid units and about 10 requested units', () => {
+    const live = open[0]
+    const liveOrders = data.orders.filter((o) => o.dropId === live?.id)
+    const paid = liveOrders.filter((o) => o.status === 'paid_confirmed').reduce((s, o) => s + (units.get(o.id) ?? 0), 0)
+    const requested = liveOrders.filter((o) => o.status === 'requested').reduce((s, o) => s + (units.get(o.id) ?? 0), 0)
+    expect(paid).toBeGreaterThanOrEqual(28)
+    expect(paid).toBeLessThanOrEqual(36)
+    expect(requested).toBeGreaterThanOrEqual(9)
+    expect(requested).toBeLessThanOrEqual(16)
+    for (const o of liveOrders.filter((o) => o.status === 'requested')) {
+      expect(now.getTime() - (o.createdAt?.getTime() ?? 0)).toBeLessThan(2 * DAY)
+    }
+    const further = data.orders.filter((o) => o.dropId === open[1]?.id)
+    expect(further.length).toBeGreaterThan(0)
+    expect(further.every((o) => o.status === 'paid_confirmed')).toBe(true)
+  })
+
+  it('records a full history chain that ends in each order status', () => {
+    const chains = new Map<string, string[]>()
+    for (const h of data.orderHistory) {
+      chains.set(h.orderId, [...(chains.get(h.orderId) ?? []), `${h.fromStatus ?? 'none'}>${h.toStatus}`])
+    }
+    const expected: Record<string, string[]> = {
+      fulfilled: ['none>requested', 'requested>paid_confirmed', 'paid_confirmed>fulfilled'],
+      cancelled: ['none>requested', 'requested>paid_confirmed', 'paid_confirmed>cancelled'],
+      paid_confirmed: ['none>requested', 'requested>paid_confirmed'],
+      requested: ['none>requested'],
+      expired: ['none>requested', 'requested>expired']
+    }
+    for (const o of data.orders) {
+      expect(chains.get(o.id)).toEqual(expected[o.status ?? 'requested'])
+    }
+  })
+
+  it('has realistic statuses: some cancellations (all refund due) and some expired requests', () => {
+    const paidPast = data.orders.filter((o) => o.status === 'fulfilled' || o.status === 'cancelled')
+    const cancelled = data.orders.filter((o) => o.status === 'cancelled')
+    expect(cancelled.length).toBeGreaterThan(0)
+    expect(cancelled.length / paidPast.length).toBeLessThan(0.12)
+    expect(cancelled.every((o) => o.refundDue)).toBe(true)
+    expect(data.orders.filter((o) => o.status === 'expired').length).toBeGreaterThan(0)
+  })
+
+  it('gives every paid order one successful payment with a unique reference', () => {
+    const refs = data.payments.map((p) => p.reference)
+    expect(new Set(refs).size).toBe(refs.length)
+    for (const o of data.orders.filter((o) => o.paidAt)) {
+      expect(data.payments.filter((p) => p.orderId === o.id && p.outcome === 'success')).toHaveLength(1)
+    }
+  })
+
+  it('keeps reminders to one per customer per drop, only for opted-in customers', () => {
+    const pairs = data.reminders.map((r) => `${r.customerId}:${r.dropId}`)
+    expect(new Set(pairs).size).toBe(pairs.length)
+    expect(data.reminders.some((r) => r.status === 'sent')).toBe(true)
+    expect(data.reminders.some((r) => r.status === 'queued')).toBe(true)
+    const optedIn = new Set(data.customers.filter((c) => c.reminderChannel).map((c) => c.id))
+    expect(data.reminders.every((r) => optedIn.has(r.customerId))).toBe(true)
+  })
+
+  it('matches customer reminder settings to their latest consent event', () => {
+    for (const c of data.customers) {
+      const events = data.consentEvents
+        .filter((e) => e.customerId === c.id)
+        .sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0))
+      const latest = events.at(-1)
+      if (!latest || latest.action === 'opt_out') {
+        expect(c.reminderChannel).toBeNull()
+      } else {
+        expect(c.reminderChannel).toBe(latest.channel)
+        expect(c.reminderFrequency).toBe(latest.frequency)
+      }
+    }
+    expect(data.consentEvents.filter((e) => e.action === 'opt_out')).toHaveLength(2)
+  })
+})
+
+describe('buildSampleData guards', () => {
+  it('rejects a pickDay that returns something other than 0 to 5', () => {
+    expect(() => build(() => 6)).toThrow(RangeError)
+    expect(() => build(() => 2.5)).toThrow(RangeError)
+  })
+})

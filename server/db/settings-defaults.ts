@@ -20,7 +20,7 @@ export interface DeliveryArea {
   feePesewas: number
 }
 
-export const settingsDefaults: Record<SettingKey, unknown> = {
+export const settingsDefaults = {
   drop_days: ['tuesday', 'friday'],
   lead_time_days: 3,
   capacity: 70,
@@ -37,4 +37,4 @@ export const settingsDefaults: Record<SettingKey, unknown> = {
   reminder_days_before_cutoff: 2,
   retention_months: 6,
   forecast_checkpoint_days: 3
-}
+} satisfies Record<SettingKey, unknown>
