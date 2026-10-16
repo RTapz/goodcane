@@ -11,8 +11,8 @@ import { createRand, randInt, type Rand } from '../../../server/db/seed/random'
 const DAY = 24 * 60 * 60 * 1000
 const now = new Date('2026-10-15T09:00:00Z')
 
-// A plain uniform stand-in for pickDay (not the weighted one), so these tests
-// exercise every bucket without depending on Ryan's implementation.
+// A plain uniform stand-in for pickDay, so the invariants are also checked
+// with a day picker that has a different shape from the real one.
 const uniformDay = (rand: Rand) => randInt(rand, 0, 5)
 
 function build(pickDay?: (rand: Rand) => number): SampleData {
@@ -29,7 +29,7 @@ function unitsByOrder(data: SampleData): Map<string, number> {
 }
 
 describe.each([
-  ['the pickDay stub', undefined],
+  ['the real pickDay', undefined],
   ['a uniform day picker', uniformDay]
 ])('buildSampleData with %s', (_name, pickDay) => {
   const data = build(pickDay)

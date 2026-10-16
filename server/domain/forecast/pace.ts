@@ -17,18 +17,50 @@ export type PaceDay = (typeof PACE_DAYS)[number]
 /** Cumulative share (0 to 1) of final planned units already paid, by days before cut-off. */
 export type PaceTable = Record<PaceDay, number>
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+
 /**
  * Learns the pace table from closed drops (BR-FC3).
  *
- * TODO (Ryan): implement.
- * - For one drop, the share paid by day d = units with paidAt before (cutOffAt minus d days),
- *   divided by that drop's total paid units. So day 0 is always 1.
- * - The table is the average of those shares across drops.
- * - Decide what to return when there are no drops, or a drop has 0 units, and add a test for it.
- * - Callers leave out drops that hit capacity (see spec section 9).
- * Tests are waiting in tests/unit/forecast/pace.test.ts (remove `.skip` there).
+ * - For one drop, the share paid by day d = units with paidAt strictly earlier than
+ *   (cutOffAt minus d days), divided by that drop's total paid units.
+ * - The table is the plain average of those shares across drops (each drop counts once).
+ * - Day 0 is 1 unless a payment landed at or after cut-off. That should never happen
+ *   (BR-D3), and if it does the table shows it instead of hiding it.
+ * - A drop with no paid units is skipped: 0 out of 0 has no share.
+ * - No drops, or only drops with no paid units, throws a RangeError: there is nothing to learn.
+ * - Callers leave out drops that hit capacity (spec section 9).
  */
 export function learnPaceTable(drops: ClosedDropPaid[]): PaceTable {
-  void drops
-  throw new Error('Not implemented yet: learnPaceTable (server/domain/forecast/pace.ts)')
+  if (drops.length === 0) {
+    throw new RangeError('learnPaceTable needs at least one closed drop')
+  }
+
+  const sums: PaceTable = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0, 0: 0 }
+  let used = 0
+
+  for (const drop of drops) {
+    const total = drop.paid.reduce((sum, p) => sum + p.units, 0)
+    if (total === 0) {
+      continue
+    }
+    used += 1
+    for (const day of PACE_DAYS) {
+      const deadline = drop.cutOffAt.getTime() - day * MS_PER_DAY
+      const paidBy = drop.paid
+        .filter((p) => p.paidAt.getTime() < deadline)
+        .reduce((sum, p) => sum + p.units, 0)
+      sums[day] += paidBy / total
+    }
+  }
+
+  if (used === 0) {
+    throw new RangeError('learnPaceTable: every drop has 0 paid units')
+  }
+
+  const table: PaceTable = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0, 0: 0 }
+  for (const day of PACE_DAYS) {
+    table[day] = sums[day] / used
+  }
+  return table
 }

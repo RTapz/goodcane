@@ -32,9 +32,4 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 - **Seed dates ignore the `drop_days` setting on purpose.** They are relative to now, so the demo always has a live drop about 3 days before cut-off, whatever day you run it.
 - Customers are "Sample Customer 01" to "Sample Customer 40" with fake phone numbers `0000000001` to `0000000040`. No real people, prices or messages are involved.
 
-### Work in progress
-
-`pnpm seed` currently fails its pace check and rolls back, by design, until these two learning tasks are written:
-
-- `server/db/seed/pickDay.ts`: weighted choice of each paid order's arrival day.
-- `server/domain/forecast/pace.ts`: `learnPaceTable` (spec BR-FC3). Its tests are in `tests/unit/forecast/pace.test.ts`; remove `.skip` there when it is implemented.
+- The final check compares the arrival pattern the seed learns back (`learnPaceTable`) with the one it was generated from (`pickDay`), and fails if any day is more than 8 points off. [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md) explains both functions.

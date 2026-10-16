@@ -174,6 +174,11 @@ export function buildSampleData({ rand, now, pickDay = defaultPickDay }: BuildOp
     return lines.reduce((sum, line) => sum + line.quantity * line.item.capacityWeight, 0)
   }
 
+  /** Keeps an order within `room` units by replacing it with the usual item if it would overshoot. */
+  function linesWithin(lines: Line[], customer: SampleCustomer, room: number): Line[] {
+    return unitsOf(lines) > room ? [{ item: customer.usual, quantity: room }] : lines
+  }
+
   function checkedDay(d: number): number {
     if (!Number.isInteger(d) || d < 0 || d > 5) {
       throw new RangeError(`pickDay must return a whole number from 0 to 5, got ${d}`)
@@ -412,9 +417,10 @@ export function buildSampleData({ rand, now, pickDay = defaultPickDay }: BuildOp
       continue
     }
     liveCustomers.add(customer.row.id)
+    const lines = linesWithin(randomLines(customer), customer, livePaidTarget - livePaidUnits)
     const paidAt = timeInBucket(live.cutOffAt, pastDayForLiveDrop())
     const createdAt = new Date(paidAt.getTime() - randInt(rand, 8, 20) * MINUTE)
-    livePaidUnits += addOrder({ customer, drop: live, kind: 'paid', lines: randomLines(customer), createdAt, paidAt })
+    livePaidUnits += addOrder({ customer, drop: live, kind: 'paid', lines, createdAt, paidAt })
   }
 
   const liveRequestTarget = randInt(rand, 9, 11)
@@ -427,8 +433,9 @@ export function buildSampleData({ rand, now, pickDay = defaultPickDay }: BuildOp
       continue
     }
     liveCustomers.add(customer.row.id)
+    const lines = linesWithin(randomLines(customer), customer, liveRequestTarget - liveRequestedUnits)
     const createdAt = new Date(now.getTime() - randBetween(rand, 0, 36 * HOUR))
-    liveRequestedUnits += addOrder({ customer, drop: live, kind: 'requested', lines: randomLines(customer), createdAt })
+    liveRequestedUnits += addOrder({ customer, drop: live, kind: 'requested', lines, createdAt })
   }
 
   // Further open drop: a few early paid orders and no requests. Its cut-off is a week away,
