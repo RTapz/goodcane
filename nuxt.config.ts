@@ -7,11 +7,16 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  // The demo is designed light-only (green and cream), so ignore the device's dark setting.
+  ui: {
+    colorMode: false
+  },
+
   typescript: {
     strict: true,
     // Type-check plain Node unit tests too (paths are relative to .nuxt/).
     nodeTsConfig: {
-      include: ['../tests/unit/**/*']
+      include: ['../tests/unit/**/*', '../tests/api/**/*']
     }
   },
 

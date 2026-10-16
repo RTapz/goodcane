@@ -18,7 +18,8 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 | Script | What it does |
 |---|---|
 | `pnpm dev` | Runs the app locally |
-| `pnpm test` | Unit tests (Vitest) |
+| `pnpm test` | Unit tests (Vitest), fast and database-free |
+| `pnpm test:api` | API test: builds the app and calls it against the seeded database (run `pnpm seed` first, about a minute) |
 | `pnpm typecheck` | Type checks the whole project |
 | `pnpm db:generate` | Creates a new migration after a schema change |
 | `pnpm db:migrate` | Applies migrations to `DATABASE_URL` |

@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
+/* Darker green for buttons and links so white text meets WCAG AA. */
+:root {
+  --ui-primary: var(--ui-color-primary-700);
+}
+
 @theme static {
   /* Brand green (sample palette, not GoodCane's artwork) */
   --color-cane-50: #f0f9f1;
