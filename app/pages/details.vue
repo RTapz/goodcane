@@ -18,8 +18,15 @@ onMounted(() => {
       <p v-if="units === 0" class="text-stone-700">Your order is empty.</p>
       <template v-else>
         <ul class="space-y-1">
-          <li v-for="line in priced" :key="line.item.id" class="flex justify-between text-stone-900">
-            <span>{{ line.quantity }} x {{ line.item.name }} {{ line.item.size }}</span>
+          <li v-for="line in priced" :key="line.item.id" class="flex justify-between gap-2 text-stone-900">
+            <span class="flex items-center gap-2">
+              <span
+                aria-hidden="true"
+                class="size-3 shrink-0 rounded-full"
+                :style="{ backgroundColor: flavourColour(line.item.name) }"
+              />
+              <span>{{ line.quantity }} x {{ line.item.name }} {{ line.item.size }}</span>
+            </span>
             <span>{{ formatPesewas(line.quantity * line.item.pricePesewas) }}</span>
           </li>
         </ul>

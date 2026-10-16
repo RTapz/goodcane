@@ -17,10 +17,16 @@ const tasteLabel = { sweet: 'Sweet', spicy: 'Spicy', sour: 'Sour' }
 
 <template>
   <li
-    class="rounded-lg bg-white p-3 shadow-sm"
+    class="rounded-lg border-l-8 bg-white p-3 shadow-sm"
     :class="props.highlighted ? 'ring-2 ring-cane-600' : ''"
+    :style="{ borderLeftColor: flavourColour(props.name) }"
   >
     <div class="flex flex-wrap items-center gap-2">
+      <span
+        aria-hidden="true"
+        class="size-4 shrink-0 rounded-full"
+        :style="{ backgroundColor: flavourColour(props.name) }"
+      />
       <h3 class="text-lg font-bold text-stone-900">{{ props.name }}</h3>
       <UBadge :label="tasteLabel[props.tasteGroup]" color="primary" variant="subtle" size="sm" />
       <UBadge v-if="props.isSpecial" label="Drop special" color="neutral" variant="subtle" size="sm" />
