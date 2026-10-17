@@ -8,8 +8,17 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   // The demo is designed light-only (green and cream), so ignore the device's dark setting.
+  // Component detection generates theme CSS only for the Nuxt UI components we use (spec 6.3, criterion 5).
   ui: {
-    colorMode: false
+    colorMode: false,
+    experimental: {
+      componentDetection: true
+    }
+  },
+
+  // Pre-compress built assets (gzip and Brotli) so a weak connection downloads far less.
+  nitro: {
+    compressPublicAssets: true
   },
 
   typescript: {

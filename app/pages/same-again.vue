@@ -269,7 +269,8 @@ async function pay(expectedTotalPesewas = total.value) {
       </NuxtLink>
       <LazyReminderOptIn source="c7" compact />
 
-      <UModal :open="newTotal !== null" title="The total has changed" @update:open="(v: boolean) => { if (!v) newTotal = null }">
+      <!-- Only needed when the server answers price_changed, so its code loads then. -->
+      <LazyUModal v-if="newTotal !== null" :open="true" title="The total has changed" @update:open="(v: boolean) => { if (!v) newTotal = null }">
         <template #body>
           <p class="text-stone-900">The total is now {{ formatPesewas(newTotal ?? 0) }}. Continue?</p>
           <div class="mt-3 flex gap-2">
@@ -277,7 +278,7 @@ async function pay(expectedTotalPesewas = total.value) {
             <UButton color="neutral" variant="outline" class="min-h-11" label="Not now" @click="newTotal = null; refreshDrop()" />
           </div>
         </template>
-      </UModal>
+      </LazyUModal>
 
       <StickyActionBar>
         <div>
