@@ -1,6 +1,7 @@
 // Order summary for C4, only for the customer who owns it (BR-L7).
 import { and, eq } from 'drizzle-orm'
 import { maskPhone } from '../../domain/identity/phone'
+import { isHoldActive } from '../../domain/orders/holds'
 import { isRequestLapsed } from '../../domain/orders/requests'
 import type { DbOrTx } from '../../db/client'
 import { customers, drops, menuItems, orderItems, orders } from '../../db/schema'
@@ -55,6 +56,9 @@ export async function getOrderForCustomer(db: DbOrTx, orderId: string, customerI
     firstName: customer.firstName ?? '',
     phoneMasked: customer.phone ? maskPhone(customer.phone) : '',
     holdMinutes,
+    holdExpiresAt: order.holdExpiresAt?.toISOString() ?? null,
+    holdActive: isHoldActive(order.holdExpiresAt, now),
+    paidAt: order.paidAt?.toISOString() ?? null,
     serverNow: now.toISOString()
   }
 }

@@ -118,10 +118,10 @@ All sample values below are owner settings stored in the `settings` table, never
 A request past that limit is **lapsed**. Until a job writes the `expired` status, the rule is applied on read (`isRequestLapsed` in `server/domain/orders/requests.ts`): screens show a lapsed request as lapsed. Every query that reads requests (the Likely tier on O1, the O2 orders list) must exclude lapsed requests using the same rule. To be built with O1.
 
 - **BR-O1** Starting payment creates a hold for hold_minutes if available is at least the order weight. Otherwise run the full-drop flow (5.5).
-- **BR-O2** On payment success, in one transaction, re-check availability (holds belonging to this order count as available to it). If OK, set `paid_confirmed` and `paid_at` and clear the hold. If not, run the full-drop flow and do not change state.
+- **BR-O2** On payment success, in one transaction, re-check availability (holds belonging to this order count as available to it). If OK, set `paid_confirmed` and `paid_at` and clear the hold. If not, run the full-drop flow and do not change state. A success after the hold expired is re-checked the same way. At or after the cut-off, an active hold taken before the cut-off is honoured; without an active hold the result is `drop_closed`. A success that cannot be confirmed stores the payment with `result = not_confirmed`, its reason and `refund_due = true` (no real money moves in the demo), and the customer is told no order was made.
 - **BR-O3** `fulfilled` is set only by the owner and only from `paid_confirmed`.
 - **BR-O4** Cancelling a `paid_confirmed` order releases capacity and sets `refund_due = true` (owner action; no real money moves in the demo).
-- **BR-O5** Every state change writes a row to `order_history` (from, to, by whom, time).
+- **BR-O5** Every state change writes a row to `order_history` (from, to, by whom, time). A hold is not a state change: `hold_expires_at` records it and no history row is written.
 - **BR-O6** Delivery orders need an address and a sample area chosen from the owner's list and add the owner's sample fee. Pickup orders need neither.
 - **BR-O7** A confirmation-mode setting exists: "On payment" (default) or "By owner" (fallback if live payment is not approved in a pilot). P2 to build the "By owner" path; design must not prevent it.
 - **BR-O8** When a session places a new order on a drop, that session's older orders on the same drop in status `requested` without an active hold become `expired` (actor `system`, with an `order_history` row), in the same transaction. Paid or fulfilled orders and orders with an active hold are never touched.
@@ -130,7 +130,7 @@ A request past that limit is **lapsed**. Until a job writes the `expired` status
 ### 5.4 Simulated payment
 - **BR-P1** The payment screen is labelled "Demo payment, no real money" and offers three outcomes: success, failed, no response.
 - **BR-P2** The buttons call `POST /api/payments/simulate`, which behaves like a provider callback.
-- **BR-P3** Each payment attempt has a unique reference. Processing is idempotent: a repeated reference returns the stored result and changes nothing.
+- **BR-P3** Each payment attempt has a unique reference. Processing is idempotent: a repeated reference returns the stored result and changes nothing. The stored result is `payments.result` (`confirmed`, `not_confirmed` or `hold_kept`) with `payments.reason`; the reference is made by the client for each attempt. A reference already used for another order or session returns a conflict and reveals nothing.
 - **BR-P4** Failed or no response keep the hold until it expires and allow retry.
 - **BR-P5** If the hold has expired, disable Pay and offer "Refresh availability".
 
@@ -140,7 +140,7 @@ A request past that limit is **lapsed**. Until a job writes the `expired` status
 - **BR-X3** Customers can cancel until cut-off. After cut-off only the owner can cancel.
 - **BR-X4** (P2) Short undo after cancelling (sample: 30 seconds) restores the order if capacity is still available.
 - **BR-F1** When available is less than wanted, ask first. Options: move to the next open drop, join the waitlist (P2), or cancel. **Never move a customer silently.**
-- **BR-F2** Record a `turned_away` row (units wanted, reason) whenever a customer cannot be served in the drop they wanted, whatever they then choose.
+- **BR-F2** Record a `turned_away` row (units wanted, reason) whenever a customer cannot be served in the drop they wanted, whatever they then choose. One row per order (`turned_away.order_id` is unique), written by `pay-start` or by a payment success that cannot be confirmed, so retries do not inflate demand. The forecast must ignore `turned_away` rows whose customer later has a `paid_confirmed` order on the same drop, to avoid counting one person twice. To be built with O1.
 - **BR-F3** (P2) Waitlist is first come first served. The owner is shown it; nothing converts automatically.
 
 ### 5.6 Identity, private link and sessions
@@ -148,13 +148,14 @@ There are no passwords. All access uses random tokens whose hashes are stored, n
 
 - **BR-L1** `access_tokens` has kinds: `link` (long-lived private link), `session` (one per device, held in a cookie), `reminder` (P1: one per reminder, expires at that drop's cut-off).
 - **BR-L2** Tokens are 32 random bytes, base64url. Store only the SHA-256 hash.
-- **BR-L3** Opening `/c/{token}` or `/r/{token}` validates the hash, expiry and revocation, then creates a `session` token and sets it as a cookie (HttpOnly, Secure, SameSite=Lax, sliding 90 days, sample). The cookie is how the same browser is recognised (primary route 1).
+- **BR-L3** Opening `/c/{token}` or `/r/{token}` validates the hash, expiry and revocation, then creates a `session` token and sets it as a cookie (HttpOnly, Secure, SameSite=Lax, sliding 90 days, sample). The cookie is how the same browser is recognised (primary route 1). A `link` token has no expiry and works every time it is opened until revoked; opening it lands on the customer's latest paid order (C6), or C1 if there is none. An invalid link lands on a plain "this link no longer works" page.
 - **BR-L4** On first order create the customer and a `session` token. The `link` token is created on the batch card confirmation (C6), the only place its raw value is shown, **once**, with Copy, Send to my WhatsApp (share sheet) and Add to home screen. (Only hashes are stored, so the link cannot be created earlier and shown later.)
 - **BR-L9** Phone numbers are Ghana numbers stored as `+233` followed by 9 digits. Accepted input: `0XXXXXXXXX` or `+233XXXXXXXXX`, with spaces and hyphens ignored. Anything else is rejected with a clear message. No network-prefix check (sample data only).
 - **BR-L5** Every reminder message the owner sends includes a fresh `reminder` link (primary route 2).
 - **BR-L6** Owner action "Send new link" creates a new `link` token, revokes the old one and opens a prefilled chat. The owner never sees raw tokens that were issued earlier.
 - **BR-L7** Order history is shown only with a valid token or session. **Never show history because someone typed a phone number.**
 - **BR-L8** Show masked phone numbers (last 3 digits) on customer screens.
+- **BR-L10** On C6 the customer can make a new private link (for example after losing the one shown once). This revokes their previous link: the customer-side counterpart of BR-L6.
 
 ### 5.7 Reminders and consent
 - **BR-R1** Opt-in appears on C6, after payment success, not in checkout. Fields: channel (WhatsApp, SMS, None) and "How often should we remind you?" (every drop, every second drop, monthly). Nothing is preselected; None is a real, equal option.
@@ -270,9 +271,9 @@ Every table that holds sample data has `is_sample boolean`. In `DEMO_MODE` every
 | **consent_events** | id, customer_id, action (opt_in, opt_out), channel, frequency, source, created_at (append-only) |
 | **orders** | id, customer_id (nullable after purge), drop_id, status, fulfilment, address, area, fee_pesewas, total_pesewas, hold_expires_at, created_at, paid_at, refund_due, idempotency_key (unique, nullable: client-generated per submission, BR-O9) |
 | **order_items** | order_id, menu_item_id, quantity, unit_price_pesewas |
-| **payments** | id, order_id, reference (unique), outcome, created_at |
+| **payments** | id, order_id, reference (unique), outcome, result (confirmed, not_confirmed, hold_kept), reason (nullable), refund_due (a success that could not be confirmed), created_at |
 | **reminders** | id, customer_id, drop_id, channel, status (queued, sent), sent_at |
-| **turned_away** | id, drop_id, units, reason, created_at |
+| **turned_away** | id, drop_id, order_id (nullable, unique: one row per order, BR-F2), units, reason, created_at |
 | **order_history** | id, order_id, from_status, to_status, actor, created_at |
 | **forecast_snapshots** | id, drop_id, checkpoint_at, method (baseline, pace), projected_units |
 
@@ -291,7 +292,7 @@ In any raw SQL, put double quotes around table and column names.
 | Validation | Zod at every server boundary |
 | Charts | Chart.js |
 | Tests | Vitest |
-| PWA | Installable (home screen icon), minimal offline shell |
+| PWA | Installable (home screen icon) from C6; minimal offline shell in a later slice |
 | Deploy | Vercel or Netlify from GitHub |
 | Package manager | pnpm |
 
@@ -318,8 +319,10 @@ Key endpoints (indicative):
 | `GET /api/drops/next` | Next open drop, spaces left |
 | `POST /api/orders` | Create a `requested` order with no hold (BR-O9). Use the customer from the valid session (updating its first name and phone), otherwise create a new customer and a session. Never look up a customer by phone at order time (it would expose their history, BR-L7). A repeated idempotency key returns the existing order id only; with another browser's session it returns 409. |
 | `GET /api/orders/:id` | Order summary for C4, only for the session that owns the order; otherwise 404 |
-| `POST /api/orders/:id/pay-start` | Create hold |
-| `POST /api/payments/simulate` | Simulated provider callback |
+| `POST /api/orders/:id/pay-start` | Create the hold (BR-O1, BR-C4): one transaction, drop row locked, server-time cut-off, spaces recomputed; an existing active hold is returned unchanged; 409 `not_enough_space` records `turned_away` once per order. Session must own the order. Also used for "Refresh availability" (BR-P5) |
+| `POST /api/payments/simulate` | Simulated provider callback: `{ orderId, reference, outcome }`, session must own the order, idempotent by reference (BR-P3). A confirmed first payment returns the private link once |
+| `POST /api/me/link` | Make a new private link for the session's customer, revoking the old one (BR-L10); returns it once |
+| `GET /c/:token` | Private link: validates, creates a session cookie, redirects to the latest paid order (BR-L3) |
 | `GET /api/me` | Customer from session cookie |
 | `POST /api/orders/:id/cancel` | Cancel with confirmation flag |
 | `POST /api/reminders/optin`, `/optout` | Consent events |

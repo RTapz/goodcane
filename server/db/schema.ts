@@ -38,6 +38,8 @@ export const reminderFrequency = pgEnum('reminder_frequency', [
 ])
 export const reminderStatus = pgEnum('reminder_status', ['queued', 'sent'])
 export const paymentOutcome = pgEnum('payment_outcome', ['success', 'failed', 'no_response'])
+// What processing a payment did (BR-P3 "returns the stored result").
+export const paymentResult = pgEnum('payment_result', ['confirmed', 'not_confirmed', 'hold_kept'])
 export const tasteGroup = pgEnum('taste_group', ['sweet', 'spicy', 'sour'])
 export const itemSize = pgEnum('item_size', ['330ml', '500ml', '2l', '4l'])
 export const orderActor = pgEnum('order_actor', ['customer', 'owner', 'system'])
@@ -213,6 +215,11 @@ export const payments = pgTable(
     // Unique so each payment reference is processed once (BR-P3).
     reference: text('reference').notNull().unique(),
     outcome: paymentOutcome('outcome').notNull(),
+    result: paymentResult('result').notNull(),
+    // Why a success was not confirmed, e.g. not_enough_space or drop_closed.
+    reason: text('reason'),
+    // A success that could not be confirmed would be refunded in a live service (BR-O2).
+    refundDue: boolean('refund_due').notNull().default(false),
     createdAt: createdAt(),
     isSample: isSample()
   },
@@ -245,6 +252,10 @@ export const turnedAway = pgTable(
     dropId: uuid('drop_id')
       .notNull()
       .references(() => drops.id, { onDelete: 'cascade' }),
+    // One row per order at most (BR-F2), so retries do not inflate demand.
+    orderId: uuid('order_id')
+      .unique()
+      .references(() => orders.id, { onDelete: 'set null' }),
     units: integer('units').notNull(),
     reason: text('reason').notNull(),
     createdAt: createdAt(),

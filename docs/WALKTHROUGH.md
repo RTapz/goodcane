@@ -1,6 +1,6 @@
 # Walkthrough
 
-Plain-language explanations of the trickier parts of GoodCane Drops: the pace functions (sections 1 and 2) and the idempotency key on order creation (section 3).
+Plain-language explanations of the trickier parts of GoodCane Drops: the pace functions (sections 1 and 2), the idempotency key on order creation (section 3), and transactions, row locks and holds on payment (section 4).
 
 Two small functions do the "pace" work in GoodCane Drops. `pickDay` invents realistic arrival times for sample orders. `learnPaceTable` reads arrival times back and learns the shape. If the seed is working, the shape it learns should be close to the shape `pickDay` was told to produce. That check runs at the end of every `pnpm seed`.
 
@@ -194,3 +194,48 @@ Result: one order, one customer, and both taps lead Ama to the same review page.
 ### One honest limitation
 
 In step 5, request 2 does not set a cookie: the server only stores the token's hash, so it cannot hand out request 1's token again. If request 1's answer is lost (the connection drops after the server committed) and only request 2's answer arrives, Ama's browser ends up with no session cookie. She sees "We can't find this order on this device" on the review page and can place the order again; the old one simply lapses after 2 days. This is noted in the README.
+
+## 4. Holding the last spaces: transactions and row locks
+
+Files: `server/services/orders/pay-start.ts`, `server/services/orders/locked-order.ts` (rules BR-O1, BR-C4)
+
+### The problem
+
+When a customer taps Pay, GoodCane holds their bottles for 10 minutes while they pay. A drop has a fixed number of spaces. If two customers tap Pay at the same moment for the last few spaces, the app must never promise the same bottles to both. That mistake is called **overselling**.
+
+### Idea 1: a transaction is all or nothing
+
+A **transaction** groups several database steps so they succeed together or not at all. Think of it as writing in pencil: until the transaction **commits**, nothing is final, and if anything goes wrong it is **rolled back**, as if none of the steps happened. Section 3 used this for creating an order.
+
+A transaction alone is not enough here, though. Two transactions can run at the same time, and both can read "3 spaces left" before either writes anything. Both would then hold 3 bottles, and 6 bottles are promised from 3 spaces.
+
+### Idea 2: a row lock makes them take turns
+
+The fix is a **row lock**. Before counting spaces, pay-start reads the drop's row with `SELECT ... FOR UPDATE`. That says: "I am about to change things that depend on this drop; anyone else who wants to do the same must wait until I commit."
+
+It works like a single key to a stock room. Whoever holds the key counts the shelves and writes their name on the bottles they take. The next person waits at the door, gets the key afterwards, and counts the shelves again, so they see what the first person took.
+
+Only work on **the same drop** waits. Customers paying for different drops never block each other, and the wait lasts milliseconds.
+
+### Worked example: two customers, 3 spaces left
+
+The drop has room for 5 bottles. 2 are already paid, so 3 spaces are left. Ama and Kofi each want 3, and both tap Pay at the same moment.
+
+| Step | Ama's pay-start | Kofi's pay-start |
+|---|---|---|
+| 1 | Starts a transaction. Locks the drop row. | Starts a transaction. Tries to lock the drop row, and **waits**: Ama has the key. |
+| 2 | Counts: 5 capacity minus 2 paid minus 0 held = 3 spaces. Her 3 bottles fit. | (still waiting) |
+| 3 | Writes her hold: `hold_expires_at` = now + 10 minutes. | (still waiting) |
+| 4 | Commits. The lock is released. | Gets the lock. |
+| 5 | Sees "spaces held for 10:00" on C5. | Counts again: 5 minus 2 paid minus **3 held by Ama** = 0 spaces. His 3 bottles do not fit. |
+| 6 | | Writes one `turned_away` row (3 bottles, "not_enough_space"), commits, and sees "Not enough space left" with Rebuild my order. Nobody is moved to another drop. |
+
+Without the lock, step 5 for Kofi could have happened before step 3 for Ama, and both would have been held. The integration test "two simultaneous pay-starts for the last spaces: exactly one succeeds" in `tests/integration/pay.test.ts` runs this race for real against the test database.
+
+### When the hold runs out
+
+A hold is just a time in `hold_expires_at`. When it passes, the hold stops counting: the space calculation only includes holds whose time is still in the future. No clean-up job is needed. If Ama's 10 minutes pass without paying, Kofi's next try (or "Refresh availability") finds the 3 spaces free again.
+
+### Idempotency again, for payments
+
+The simulated payment uses the same idea as section 3, keyed on the **payment reference**. Each tap on a Simulate button makes a new reference. If the same reference arrives twice (a slow network retrying, or a provider calling back twice), the second time returns the stored result and changes nothing, so an order can never be confirmed twice. A success that arrives after the hold expired is re-checked under the same lock: if the bottles still fit it is confirmed; if not, the payment is stored as "not confirmed" with `refund_due` set, and the customer is told no order was made.

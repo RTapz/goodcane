@@ -213,6 +213,8 @@ export function buildSampleData({ rand, now, pickDay = defaultPickDay }: BuildOp
       orderId,
       reference: `SAMPLE-PAY-${String(paymentNumber).padStart(5, '0')}`,
       outcome,
+      // Seeded successes were all confirmed; seeded failures kept their hold for a retry (BR-P4).
+      result: outcome === 'success' ? 'confirmed' : 'hold_kept',
       createdAt,
       isSample: true
     })

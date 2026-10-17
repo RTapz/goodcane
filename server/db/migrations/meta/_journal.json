@@ -15,6 +15,13 @@
       "when": 1792189462255,
       "tag": "0001_order_idempotency_key",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792258131695,
+      "tag": "0002_payment_result_and_turned_away_order",
+      "breakpoints": true
     }
   ]
 }

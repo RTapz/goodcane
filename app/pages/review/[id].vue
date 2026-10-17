@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// C4 Review and pay. No hold yet: spaces are held only once Pay is tapped (C5 slice, BR-O1).
+// C4 Review and pay. No hold yet: spaces are held only once Pay is tapped (C5, BR-O1).
 import type { OrderSummary } from '~~/server/services/orders/get-order'
 
 const route = useRoute()
@@ -8,7 +8,7 @@ const { data: order, status, error, refresh } = await useFetch<OrderSummary>(() 
   key: `order-${id.value}`
 })
 const { data: next, refresh: refreshSpaces } = await useNextDrop()
-const { attachToDrop, setQuantity, clear } = useCart()
+const rebuildOrder = useRebuildOrder()
 
 // Live spaces left for this order's drop: refreshed every 30 seconds and when the tab regains focus.
 let timer: ReturnType<typeof setInterval> | undefined
@@ -31,13 +31,11 @@ const units = computed(() => order.value?.lines.reduce((sum, l) => sum + l.quant
 const notFound = computed(() => error.value?.statusCode === 404)
 const inactive = computed(() => !!order.value && (order.value.lapsed || order.value.status === 'expired'))
 
+const paid = computed(() => order.value?.status === 'paid_confirmed' || order.value?.status === 'fulfilled')
+
 /** Puts this order's items back in the cart and returns to C2 (no dead end). */
 async function rebuild() {
-  if (!order.value) return
-  attachToDrop(order.value.drop.id)
-  clear()
-  for (const line of order.value.lines) setQuantity(line.menuItemId, line.quantity)
-  await navigateTo('/order')
+  if (order.value) await rebuildOrder(order.value)
 }
 </script>
 
@@ -97,7 +95,12 @@ async function rebuild() {
         <NuxtLink to="/details" class="mt-1 inline-flex min-h-11 items-center font-semibold text-cane-700 underline">Change details</NuxtLink>
       </section>
 
-      <template v-if="!inactive && !order.drop.closed">
+      <div v-if="paid" role="status" class="rounded-lg bg-white p-4 shadow-sm">
+        <h2 class="text-xl font-bold text-stone-900">This order is paid and confirmed</h2>
+        <UButton :to="`/confirmed/${order.id}`" class="mt-3 min-h-11" label="See your confirmation" />
+      </div>
+
+      <template v-else-if="!inactive && !order.drop.closed">
         <section class="space-y-1 rounded-lg bg-cream-200 p-4" aria-label="About payment">
           <p class="font-bold text-stone-900">Demo payment: no real money is taken</p>
           <p class="text-stone-800">Spaces are held for {{ order.holdMinutes }} minutes once you tap Pay.</p>
@@ -111,7 +114,7 @@ async function rebuild() {
             <p class="font-bold text-stone-900">{{ formatPesewas(order.totalPesewas) }}</p>
             <p class="text-sm text-stone-700">Demo payment</p>
           </div>
-          <UButton :to="{ path: '/pay', query: { order: order.id } }" size="xl" class="min-h-12 px-8" label="Pay" />
+          <UButton :to="`/pay/${order.id}`" size="xl" class="min-h-12 px-8" label="Pay" />
         </StickyActionBar>
       </template>
     </template>

@@ -25,7 +25,14 @@ export default defineNuxtConfig({
       htmlAttrs: { lang: 'en-GB' },
       title: 'GoodCane Drops (Demo)',
       meta: [
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'theme-color', content: '#1f5c2f' }
+      ],
+      // Installable from C6 ("Add to home screen"). Icons are a plain text "GD" tile.
+      link: [
+        { rel: 'manifest', href: '/manifest.webmanifest' },
+        { rel: 'icon', type: 'image/svg+xml', href: '/icons/icon.svg' },
+        { rel: 'apple-touch-icon', href: '/icons/icon-180.png' }
       ]
     }
   },
