@@ -30,9 +30,13 @@ export const nextDropResponse = z.strictObject({
       soldOut: z.boolean()
     })
   ),
-  pickupWindow: z.strictObject({ start: z.string(), end: z.string() })
+  pickupWindow: z.strictObject({ start: z.string(), end: z.string() }),
+  deliveryAreas: z.array(
+    z.strictObject({ id: z.string(), name: z.string(), feePesewas: z.number().int().nonnegative() })
+  )
 })
 
 export type NextDropResponse = z.infer<typeof nextDropResponse>
 export type MenuItem = NextDropResponse['menu'][number]
 export type DropSummary = NonNullable<NextDropResponse['drop']>
+export type DeliveryAreaOption = NextDropResponse['deliveryAreas'][number]

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const props = defineProps<{ units: number; totalPesewas: number; spacesAfter: number }>()
+const props = defineProps<{ units: number; totalPesewas: number; spacesAfter: number; overBy: number }>()
 </script>
 
 <template>
@@ -7,13 +7,15 @@ const props = defineProps<{ units: number; totalPesewas: number; spacesAfter: nu
     <div class="mx-auto flex w-full max-w-md items-center justify-between gap-3 px-4 py-3">
       <div aria-live="polite">
         <p class="font-bold text-stone-900">
-          {{ props.units }} {{ props.units === 1 ? 'bottle' : 'bottles' }}, {{ formatPesewas(props.totalPesewas) }}
+          {{ plural(props.units, 'bottle', 'bottles') }}, {{ formatPesewas(props.totalPesewas) }}
         </p>
-        <p class="text-sm text-stone-700">{{ props.spacesAfter }} spaces left after yours</p>
+        <p class="text-sm text-stone-700">
+          {{ props.overBy > 0 ? `Remove ${plural(props.overBy, 'bottle', 'bottles')} to continue` : `${plural(props.spacesAfter, 'space', 'spaces')} left after yours` }}
+        </p>
       </div>
       <UButton
         to="/details"
-        :disabled="props.units === 0"
+        :disabled="props.units === 0 || props.overBy > 0"
         size="xl"
         class="min-h-12 px-6"
         label="Continue"

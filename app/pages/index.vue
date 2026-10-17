@@ -38,7 +38,7 @@ const drop = computed(() => data.value?.drop ?? null)
         </ClientOnly>
         <p class="text-stone-700">Cut-off: {{ formatCutOff(drop.cutOffAt) }}</p>
         <p class="font-semibold text-stone-900">
-          {{ drop.spacesLeft > 0 ? `${drop.spacesLeft} spaces left` : 'This drop is full' }}
+          {{ drop.spacesLeft > 0 ? `${plural(drop.spacesLeft, 'space', 'spaces')} left` : 'This drop is full' }}
         </p>
       </section>
 

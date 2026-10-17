@@ -16,6 +16,8 @@ export type SettingKey =
   | 'forecast_checkpoint_days'
 
 export interface DeliveryArea {
+  /** Stable id the customer picks on C3; orders store the name and fee. */
+  id: string
   name: string
   feePesewas: number
 }
@@ -28,8 +30,8 @@ export const settingsDefaults = {
   request_expiry_days: 2,
   buffer_setting: 'balanced',
   delivery_areas: [
-    { name: 'Sample area A', feePesewas: 1000 },
-    { name: 'Sample area B', feePesewas: 1500 }
+    { id: 'sample-area-a', name: 'Sample area A', feePesewas: 1000 },
+    { id: 'sample-area-b', name: 'Sample area B', feePesewas: 1500 }
   ] satisfies DeliveryArea[],
   // Africa/Accra local time.
   pickup_window: { start: '12:00', end: '18:00' },

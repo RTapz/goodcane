@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
     "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
     "test:api": "vitest run --project api",
     "seed": "tsx server/db/seed/index.ts",
     "db:generate": "drizzle-kit generate",

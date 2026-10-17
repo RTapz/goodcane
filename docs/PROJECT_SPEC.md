@@ -92,7 +92,7 @@ Priority tags used throughout:
 All sample values below are owner settings stored in the `settings` table, never hard-coded.
 
 ### 5.1 Drops
-- **BR-D1** The owner sets drop days (sample: Tuesday and Friday), lead time (sample: 3 days), capacity (sample: 70), hold minutes (sample: 10), request expiry (2 days), buffer setting, delivery areas and fees, pickup window.
+- **BR-D1** The owner sets drop days (sample: Tuesday and Friday), lead time (sample: 3 days), capacity (sample: 70), hold minutes (sample: 10), request expiry (2 days), buffer setting, delivery areas and fees (each area has a stable `id`, a name and a fee in pesewas), pickup window.
 - **BR-D2** cut_off_at = drop_at minus lead_time. Example: a Friday drop closes on Tuesday; a Tuesday drop closes on Saturday.
 - **BR-D3** Orders are accepted only while now is before cut_off_at and the drop status is `open`.
 - **BR-D4** After cut-off the drop is `closed`. The customer sees the next open drop with its cut-off and can reserve for it ("missed it" screen).
@@ -115,6 +115,8 @@ All sample values below are owner settings stored in the `settings` table, never
 | `cancelled` | Cancelled by customer or owner. |
 | `expired` | System: unpaid after the earlier of 2 days from creation or the cut-off. |
 
+A request past that limit is **lapsed**. Until a job writes the `expired` status, the rule is applied on read (`isRequestLapsed` in `server/domain/orders/requests.ts`): screens show a lapsed request as lapsed. Every query that reads requests (the Likely tier on O1, the O2 orders list) must exclude lapsed requests using the same rule. To be built with O1.
+
 - **BR-O1** Starting payment creates a hold for hold_minutes if available is at least the order weight. Otherwise run the full-drop flow (5.5).
 - **BR-O2** On payment success, in one transaction, re-check availability (holds belonging to this order count as available to it). If OK, set `paid_confirmed` and `paid_at` and clear the hold. If not, run the full-drop flow and do not change state.
 - **BR-O3** `fulfilled` is set only by the owner and only from `paid_confirmed`.
@@ -122,6 +124,8 @@ All sample values below are owner settings stored in the `settings` table, never
 - **BR-O5** Every state change writes a row to `order_history` (from, to, by whom, time).
 - **BR-O6** Delivery orders need an address and a sample area chosen from the owner's list and add the owner's sample fee. Pickup orders need neither.
 - **BR-O7** A confirmation-mode setting exists: "On payment" (default) or "By owner" (fallback if live payment is not approved in a pilot). P2 to build the "By owner" path; design must not prevent it.
+- **BR-O8** When a session places a new order on a drop, that session's older orders on the same drop in status `requested` without an active hold become `expired` (actor `system`, with an `order_history` row), in the same transaction. Paid or fulfilled orders and orders with an active hold are never touched.
+- **BR-O9** Creating an order (`POST /api/orders`) reserves nothing: it checks the cut-off by server time and does an advisory capacity check (BR-C2), then stores a `requested` order with no hold. Prices, weights and fees are read from the database, never from the client. A client-generated idempotency key makes a repeated submission return the same order instead of creating a second one.
 
 ### 5.4 Simulated payment
 - **BR-P1** The payment screen is labelled "Demo payment, no real money" and offers three outcomes: success, failed, no response.
@@ -145,7 +149,8 @@ There are no passwords. All access uses random tokens whose hashes are stored, n
 - **BR-L1** `access_tokens` has kinds: `link` (long-lived private link), `session` (one per device, held in a cookie), `reminder` (P1: one per reminder, expires at that drop's cut-off).
 - **BR-L2** Tokens are 32 random bytes, base64url. Store only the SHA-256 hash.
 - **BR-L3** Opening `/c/{token}` or `/r/{token}` validates the hash, expiry and revocation, then creates a `session` token and sets it as a cookie (HttpOnly, Secure, SameSite=Lax, sliding 90 days, sample). The cookie is how the same browser is recognised (primary route 1).
-- **BR-L4** On first order create the customer and a `link` token. Show the raw link **once**, on the batch card confirmation (C6), with Copy, Send to my WhatsApp (share sheet) and Add to home screen.
+- **BR-L4** On first order create the customer and a `session` token. The `link` token is created on the batch card confirmation (C6), the only place its raw value is shown, **once**, with Copy, Send to my WhatsApp (share sheet) and Add to home screen. (Only hashes are stored, so the link cannot be created earlier and shown later.)
+- **BR-L9** Phone numbers are Ghana numbers stored as `+233` followed by 9 digits. Accepted input: `0XXXXXXXXX` or `+233XXXXXXXXX`, with spaces and hyphens ignored. Anything else is rejected with a clear message. No network-prefix check (sample data only).
 - **BR-L5** Every reminder message the owner sends includes a fresh `reminder` link (primary route 2).
 - **BR-L6** Owner action "Send new link" creates a new `link` token, revokes the old one and opens a prefilled chat. The owner never sees raw tokens that were issued earlier.
 - **BR-L7** Order history is shown only with a valid token or session. **Never show history because someone typed a phone number.**
@@ -263,7 +268,7 @@ Every table that holds sample data has `is_sample boolean`. In `DEMO_MODE` every
 | **customers** | id, first_name, phone (indexed, not unique: the same phone may belong to several customer records), reminder_channel, reminder_frequency, last_active_at, deleted_at |
 | **access_tokens** | id, customer_id, kind (link, session, reminder), token_hash, expires_at, revoked_at, drop_id (nullable) |
 | **consent_events** | id, customer_id, action (opt_in, opt_out), channel, frequency, source, created_at (append-only) |
-| **orders** | id, customer_id (nullable after purge), drop_id, status, fulfilment, address, area, fee_pesewas, total_pesewas, hold_expires_at, created_at, paid_at, refund_due |
+| **orders** | id, customer_id (nullable after purge), drop_id, status, fulfilment, address, area, fee_pesewas, total_pesewas, hold_expires_at, created_at, paid_at, refund_due, idempotency_key (unique, nullable: client-generated per submission, BR-O9) |
 | **order_items** | order_id, menu_item_id, quantity, unit_price_pesewas |
 | **payments** | id, order_id, reference (unique), outcome, created_at |
 | **reminders** | id, customer_id, drop_id, channel, status (queued, sent), sent_at |
@@ -311,7 +316,8 @@ Key endpoints (indicative):
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/drops/next` | Next open drop, spaces left |
-| `POST /api/orders` | Create a `requested` order. Use the customer from the valid session, otherwise create a new customer and link. Never look up a customer by phone at order time (it would expose their history, BR-L7) |
+| `POST /api/orders` | Create a `requested` order with no hold (BR-O9). Use the customer from the valid session (updating its first name and phone), otherwise create a new customer and a session. Never look up a customer by phone at order time (it would expose their history, BR-L7). A repeated idempotency key returns the existing order id only; with another browser's session it returns 409. |
+| `GET /api/orders/:id` | Order summary for C4, only for the session that owns the order; otherwise 404 |
 | `POST /api/orders/:id/pay-start` | Create hold |
 | `POST /api/payments/simulate` | Simulated provider callback |
 | `GET /api/me` | Customer from session cookie |
@@ -320,7 +326,7 @@ Key endpoints (indicative):
 | `GET /api/owner/drop/:id/demand` | Demand view numbers |
 | `POST /api/owner/drop/:id/close` | Close batch |
 
-Security basics: HTTPS only, Zod validation, simple rate limit on order creation, HTML escaping, never log phone numbers or tokens, owner routes behind a passcode session (demo only; a real pilot needs proper owner accounts), seed is a CLI script and not an endpoint.
+Security basics: HTTPS only, Zod validation, simple rate limit on order creation (deferred to the deployment checklist), HTML escaping, never log phone numbers or tokens, owner routes behind a passcode session (demo only; a real pilot needs proper owner accounts), seed is a CLI script and not an endpoint.
 
 ## 9. Seed data (`pnpm seed`)
 

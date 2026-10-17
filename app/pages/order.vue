@@ -7,6 +7,12 @@ const route = useRoute()
 const { data, status, refresh } = await useNextDrop()
 const menu = computed(() => data.value?.menu ?? [])
 const { cart, units, totalPesewas, attachToDrop, switchDrop, quantityOf, setQuantity } = useCart(menu)
+// Set when the server turned an order down on C3. Spaces may have changed, so refetch.
+const { notice, clearNotice } = useOrderNotice()
+onMounted(() => {
+  if (notice.value) refresh()
+})
+onBeforeUnmount(clearNotice)
 
 const pickedTaste = computed(() => {
   const taste = route.query.taste
@@ -58,7 +64,9 @@ const flavours = computed(() => {
 })
 
 const canAddOne = (item: MenuItem) => fitsInDrop(units.value + item.capacityWeight, spaces.value)
-const atLimit = computed(() => units.value > 0 && available.value.every((item) => !canAddOne(item)))
+// The cart can be bigger than the spaces left if spaces were taken since it was built.
+const overBy = computed(() => Math.max(0, units.value - spaces.value))
+const atLimit = computed(() => overBy.value === 0 && units.value > 0 && available.value.every((item) => !canAddOne(item)))
 </script>
 
 <template>
@@ -76,13 +84,22 @@ const atLimit = computed(() => units.value > 0 && available.value.every((item) =
       <template v-else>
         <header>
           <h1 class="text-2xl font-extrabold text-stone-900">Build your order</h1>
-          <p class="text-stone-700">For {{ formatDropDate(activeDrop.dropAt) }}. {{ spaces }} spaces left.</p>
+          <p class="text-stone-700">For {{ formatDropDate(activeDrop.dropAt) }}. {{ plural(spaces, 'space', 'spaces') }} left.</p>
           <p v-if="pickedTaste" class="mt-1 text-sm text-stone-700">
             {{ pickedTaste[0]!.toUpperCase() + pickedTaste.slice(1) }} flavours first, as you picked.
           </p>
         </header>
 
-        <p v-if="atLimit" role="status" class="rounded-lg bg-cream-200 p-3 text-sm text-stone-900">
+        <div v-if="notice" role="alert" class="flex items-start justify-between gap-2 rounded-lg border border-amber-400 bg-white p-3">
+          <p class="font-semibold text-stone-900">{{ notice }}</p>
+          <UButton color="neutral" variant="ghost" class="min-h-11 shrink-0" label="Dismiss" @click="clearNotice" />
+        </div>
+
+        <p v-if="overBy > 0" role="status" class="rounded-lg bg-cream-200 p-3 text-sm text-stone-900">
+          Your order has {{ plural(units, 'bottle', 'bottles') }}, but only {{ plural(spaces, 'space is', 'spaces are') }} left.
+          Remove {{ plural(overBy, 'bottle', 'bottles') }} to continue.
+        </p>
+        <p v-else-if="atLimit" role="status" class="rounded-lg bg-cream-200 p-3 text-sm text-stone-900">
           Your order fills the last spaces in this drop, so you can't add more.
         </p>
 
@@ -91,7 +108,7 @@ const atLimit = computed(() => units.value > 0 && available.value.every((item) =
           <h2 class="text-xl font-bold text-stone-900">This drop is full</h2>
           <template v-if="data.nextDrop && activeDrop.id !== data.nextDrop.id">
             <p class="mt-1 text-stone-700">
-              The next drop is {{ formatDropDate(data.nextDrop.dropAt) }}, with {{ data.nextDrop.spacesLeft }} spaces left.
+              The next drop is {{ formatDropDate(data.nextDrop.dropAt) }}, with {{ plural(data.nextDrop.spacesLeft, 'space', 'spaces') }} left.
             </p>
             <UButton
               class="mt-3 min-h-11"
@@ -117,7 +134,7 @@ const atLimit = computed(() => units.value > 0 && available.value.every((item) =
           />
         </ul>
 
-        <TotalBar :units="units" :total-pesewas="totalPesewas" :spaces-after="spacesAfter" />
+        <TotalBar :units="units" :total-pesewas="totalPesewas" :spaces-after="spacesAfter" :over-by="overBy" />
       </template>
     </template>
   </div>

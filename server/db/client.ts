@@ -16,3 +16,7 @@ export function createDb(databaseUrl: string) {
 }
 
 export type Db = ReturnType<typeof createDb>['db']
+/** A transaction handle, as passed to `db.transaction(async (tx) => ...)`. */
+export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]
+/** Queries that work both inside and outside a transaction take this. */
+export type DbOrTx = Db | Tx

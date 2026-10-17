@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { restoreCart } from '../../../app/utils/cart-storage'
-import { formatCutOff, formatDropDate, formatPesewas, splitDuration } from '../../../app/utils/format'
+import { formatCutOff, formatDropDate, formatPesewas, plural, splitDuration } from '../../../app/utils/format'
 
 describe('formatting', () => {
   it('shows pesewas as cedis', () => {
@@ -11,6 +11,12 @@ describe('formatting', () => {
   it('shows dates in Africa/Accra', () => {
     expect(formatDropDate('2026-10-20T12:00:00Z')).toBe('Tuesday 20 October')
     expect(formatCutOff('2026-10-17T12:00:00Z')).toBe('Saturday 17 October at 12:00')
+  })
+
+  it('pluralises counts', () => {
+    expect(plural(1, 'space', 'spaces')).toBe('1 space')
+    expect(plural(0, 'space', 'spaces')).toBe('0 spaces')
+    expect(plural(3, 'space', 'spaces')).toBe('3 spaces')
   })
 
   it('splits a duration for the countdown', () => {

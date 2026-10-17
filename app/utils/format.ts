@@ -29,6 +29,11 @@ export function formatCutOff(date: Date | string): string {
   }).format(new Date(date))
 }
 
+/** "1 space", "3 spaces". */
+export function plural(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`
+}
+
 /** Whole days, hours, minutes and seconds in a duration, for the countdown. */
 export function splitDuration(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000))

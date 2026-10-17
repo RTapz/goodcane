@@ -16,7 +16,7 @@ export default defineNuxtConfig({
     strict: true,
     // Type-check plain Node unit tests too (paths are relative to .nuxt/).
     nodeTsConfig: {
-      include: ['../tests/unit/**/*', '../tests/api/**/*']
+      include: ['../tests/unit/**/*', '../tests/api/**/*', '../tests/integration/**/*', '../tests/support/**/*']
     }
   },
 

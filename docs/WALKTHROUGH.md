@@ -1,4 +1,6 @@
-# Walkthrough: pickDay and learnPaceTable
+# Walkthrough
+
+Plain-language explanations of the trickier parts of GoodCane Drops: the pace functions (sections 1 and 2) and the idempotency key on order creation (section 3).
 
 Two small functions do the "pace" work in GoodCane Drops. `pickDay` invents realistic arrival times for sample orders. `learnPaceTable` reads arrival times back and learns the shape. If the seed is working, the shape it learns should be close to the shape `pickDay` was told to produce. That check runs at the end of every `pnpm seed`.
 
@@ -148,3 +150,47 @@ The tests live in `tests/unit/seed/pickDay.test.ts` and `tests/unit/forecast/pac
 | Target | 20% | 35% | 60% | 80% | 92% | 100% |
 
 Every day is within the 8-point limit, so the seed commits. The gaps are normal randomness: 7 drops of about 20 orders each is a small sample. Day 4 is the closest to the limit at 7.2 points off. The honesty rule in the spec applies: this proves the mechanism works, not that the forecast is accurate with real customers.
+
+## 3. The idempotency key: one tap, one order
+
+File: `server/services/orders/place-order.ts` (rule BR-O9)
+
+### The problem
+
+Phones on a weak connection do strange things. A customer taps Continue, nothing seems to happen, so they tap again. Or the browser quietly retries a request that timed out. Each tap sends the same order to the server. Without protection, two taps would mean two orders, two rows in the demand view and a confused customer.
+
+### The idea
+
+"Idempotent" means "doing it twice has the same effect as doing it once". Pressing a lift button a second time does not call a second lift.
+
+We get that with an **idempotency key**: a long random id (a UUID, such as `3f2a…c91`) that the C3 page makes up **before** it sends the order. Every repeat of the same submission carries the same key. The server stores the key on the order, and the database refuses to store the same key twice (a `unique` constraint on `orders.idempotency_key`).
+
+When an order arrives, the server first asks "do I already have an order with this key?"
+
+- **No:** create the order and remember the key.
+- **Yes, and it is from the same browser:** do nothing new, and answer with the order that already exists.
+- **Yes, but another browser's session is asking:** answer "conflict" and reveal nothing about that order.
+
+The page makes a new key whenever the order itself changes (different items, name, phone or address). Editing and resubmitting is a new order; tapping twice is not.
+
+### What a transaction adds
+
+Everything the server writes for one order happens inside one **database transaction**: the customer row, the order, its items, its history row and the session token. A transaction is all or nothing. If anything fails half way, the database undoes every write in it, as if none of them happened. (The C5 slice will add more detail on transactions, when holds need them to stop overselling.)
+
+### Worked example: a double tap on a new phone
+
+Ama, on a phone that has never ordered before, taps Continue twice within a fraction of a second. Both requests carry key `K` and neither carries a session cookie yet.
+
+| Step | Request 1 | Request 2 |
+|---|---|---|
+| 1 | Starts a transaction. Is there an order with key `K`? No. | Starts a transaction. Is there an order with key `K`? No (request 1 has not finished yet). |
+| 2 | Checks the drop, prices, spaces. All fine. | Same checks. All fine. |
+| 3 | Creates customer C1 and order O1 with key `K`. | Creates customer C2, then tries to create an order with key `K`. The database makes it wait, because request 1 is about to use that key. |
+| 4 | Commits. O1 and C1 now exist. Sets Ama's session cookie. | The wait ends with "duplicate key". The whole transaction is undone, so customer C2 disappears too. |
+| 5 | Answers: order O1. | Looks up key `K` again, finds O1, and answers: order O1. |
+
+Result: one order, one customer, and both taps lead Ama to the same review page. The test "a double tap racing in parallel still gives one order and one customer" in `tests/integration/place-order.test.ts` runs exactly this.
+
+### One honest limitation
+
+In step 5, request 2 does not set a cookie: the server only stores the token's hash, so it cannot hand out request 1's token again. If request 1's answer is lost (the connection drops after the server committed) and only request 2's answer arrives, Ama's browser ends up with no session cookie. She sees "We can't find this order on this device" on the review page and can place the order again; the old one simply lapses after 2 days. This is noted in the README.

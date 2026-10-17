@@ -170,6 +170,8 @@ export const orders = pgTable(
     createdAt: createdAt(),
     paidAt: timestamptz('paid_at'),
     refundDue: boolean('refund_due').notNull().default(false),
+    // Client-generated per submission, so a double tap returns the same order (BR-O9).
+    idempotencyKey: text('idempotency_key').unique(),
     isSample: isSample()
   },
   (t) => [

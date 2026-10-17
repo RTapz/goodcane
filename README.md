@@ -19,7 +19,8 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 |---|---|
 | `pnpm dev` | Runs the app locally |
 | `pnpm test` | Unit tests (Vitest), fast and database-free |
-| `pnpm test:api` | API test: builds the app and calls it against the seeded database (run `pnpm seed` first, about a minute) |
+| `pnpm test:integration` | Order creation against a real database (`TEST_DATABASE_URL`, name must end in `_test`) |
+| `pnpm test:api` | Builds the app and calls it over HTTP against the test database, which it migrates and seeds itself (about a minute) |
 | `pnpm typecheck` | Type checks the whole project |
 | `pnpm db:generate` | Creates a new migration after a schema change |
 | `pnpm db:migrate` | Applies migrations to `DATABASE_URL` |
@@ -34,3 +35,9 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 - Customers are "Sample Customer 01" to "Sample Customer 40" with fake phone numbers `0000000001` to `0000000040`. No real people, prices or messages are involved.
 
 - The final check compares the arrival pattern the seed learns back (`learnPaceTable`) with the one it was generated from (`pickDay`), and fails if any day is more than 8 points off. [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md) explains both functions.
+
+## Known limitations
+
+- **Session after a lost response.** Orders are idempotent: a repeated submission returns the same order (see [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md), section 3). But if the first response is lost and only the replay's response arrives, the browser can end up without a session cookie, because the server stores only the token's hash and cannot send it again. The customer then sees "We can't find this order on this device" and can place the order again; the earlier request lapses after 2 days.
+- **Rate limiting** on order creation (spec section 8) is deferred to the deployment checklist.
+- **Session cookie** is marked `Secure` outside `pnpm dev`, so a production build served over plain http (for example `nuxt preview` on a LAN) will not keep a session.
