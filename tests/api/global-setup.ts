@@ -17,9 +17,18 @@ export default async function setup() {
     await client.end()
   }
   // The seed reads DATABASE_URL; values already in the environment win over .env.
-  execFileSync(process.execPath, [`${rootDir}/node_modules/tsx/dist/cli.mjs`, 'server/db/seed/index.ts'], {
-    cwd: rootDir,
-    env: { ...process.env, DATABASE_URL: url },
-    stdio: ['ignore', 'ignore', 'inherit']
-  })
+  // Its output is captured and printed in full only if it fails, so failures are never silent.
+  try {
+    execFileSync(process.execPath, [`${rootDir}/node_modules/tsx/dist/cli.mjs`, 'server/db/seed/index.ts'], {
+      cwd: rootDir,
+      env: { ...process.env, DATABASE_URL: url },
+      stdio: 'pipe',
+      encoding: 'utf8'
+    })
+  } catch (error) {
+    const e = error as { stdout?: string; stderr?: string; status?: number }
+    throw new Error(
+      `Seeding the test database failed (exit ${e.status ?? '?'}).\n--- seed stdout ---\n${e.stdout ?? ''}\n--- seed stderr ---\n${e.stderr ?? ''}`
+    )
+  }
 }
