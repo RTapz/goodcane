@@ -1,8 +1,9 @@
 // Private links (BR-L1 to BR-L4, BR-L10) and the sessions they create.
 // Only SHA-256 hashes are stored; a raw token exists only in the response that creates it.
 import { and, desc, eq, gt, inArray, isNull, or } from 'drizzle-orm'
+import { pickNextDrop } from '../domain/drops/current'
 import type { Db, DbOrTx } from '../db/client'
-import { accessTokens, customers, orders } from '../db/schema'
+import { accessTokens, customers, drops, orders } from '../db/schema'
 import { generateToken, hashToken, SESSION_DAYS } from './tokens'
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
@@ -77,6 +78,19 @@ export async function redeemLink(db: Db, raw: string, now: Date, demoMode: boole
       .limit(1)
     return { customerId: link.customerId, sessionToken, latestPaidOrderId: latest?.id ?? null }
   })
+}
+
+/**
+ * Where a returning customer lands after opening their link (BR-L3): C7 when they have a paid
+ * order and a drop is open ahead, otherwise C1 with a short welcome.
+ */
+export async function landingFor(db: DbOrTx, customerId: string, now: Date): Promise<string> {
+  if (!(await hasPaidOrder(db, customerId))) return '/?welcome=1'
+  const open = await db
+    .select({ id: drops.id, dropAt: drops.dropAt, cutOffAt: drops.cutOffAt })
+    .from(drops)
+    .where(eq(drops.status, 'open'))
+  return pickNextDrop(open, now).drop ? '/same-again' : '/?welcome=1'
 }
 
 /** Whether the customer has at least one paid order (needed before making a new link). */

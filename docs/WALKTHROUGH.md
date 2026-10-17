@@ -1,6 +1,6 @@
 # Walkthrough
 
-Plain-language explanations of the trickier parts of GoodCane Drops: the pace functions (sections 1 and 2), the idempotency key on order creation (section 3), and transactions, row locks and holds on payment (section 4).
+Plain-language explanations of the trickier parts of GoodCane Drops: the pace functions (sections 1 and 2), the idempotency key on order creation (section 3), transactions, row locks and holds on payment (section 4), and "your usual" on C7 (section 5).
 
 Two small functions do the "pace" work in GoodCane Drops. `pickDay` invents realistic arrival times for sample orders. `learnPaceTable` reads arrival times back and learns the shape. If the seed is working, the shape it learns should be close to the shape `pickDay` was told to produce. That check runs at the end of every `pnpm seed`.
 
@@ -239,3 +239,44 @@ A hold is just a time in `hold_expires_at`. When it passes, the hold stops count
 ### Idempotency again, for payments
 
 The simulated payment uses the same idea as section 3, keyed on the **payment reference**. Each tap on a Simulate button makes a new reference. If the same reference arrives twice (a slow network retrying, or a provider calling back twice), the second time returns the stored result and changes nothing, so an order can never be confirmed twice. A success that arrives after the hold expired is re-checked under the same lock: if the bottles still fit it is confirmed; if not, the payment is stored as "not confirmed" with `refund_due` set, and the customer is told no order was made.
+
+## 5. buildUsualOrder: "your usual", checked against today
+
+File: `server/domain/orders/usual.ts` (spec 6.3)
+
+### What it does
+
+On C7 the customer sees their last paid order, ready to pay again. But the world may have moved on since then: a flavour can be sold out, a price can change, the drop can be nearly full. `buildUsualOrder` takes three things:
+
+- the lines of the last paid order (item, quantity, and the price paid),
+- today's menu (with which items are available in this drop),
+- the spaces left in the drop,
+
+and returns each line with a **status**, plus whether the whole order fits. It never changes anything by itself: it only describes what it found, so the page can ask the customer.
+
+| Status | Meaning | What C7 shows |
+|---|---|---|
+| `ok` | Same item, same price, fits | Nothing extra |
+| `price_changed` | The price is different from last time | "was GH₵30.00, now GH₵35.00" |
+| `substituted` | The item is not available, but a similar one is | "Try Passionfruit cane 330ml?" with **Use this** and **Leave it out** |
+| `unavailable` | Nothing similar in the same taste group | "No similar drink in this drop, so it is left out" |
+| `too_big_for_space` | The drop cannot take this many | A suggested lower quantity, offered with **Reduce to fit** or **See next drop** |
+
+"Similar" means: the same taste group (sweet, spicy, sour), the same size first, then the other size; ordinary flavours before drop specials, then alphabetical.
+
+### Worked example
+
+Last time Ama bought:
+
+- 2 x Raw cane 330ml at GH₵30.00
+- 3 x Lemon-mint cane 500ml at GH₵45.00
+
+Today: Raw cane 330ml costs GH₵35.00. Lemon-mint 500ml is sold out, and Lemon-charcoal 500ml (also sour) is available at GH₵45.00. The drop has **4 spaces** left.
+
+1. **Raw cane 330ml.** Still on the menu, so the item is the same. 2 bottles need 2 spaces; 4 are left, so it fits, leaving 2. The price went from 3000 to 3500 pesewas, so the status is `price_changed` and C7 shows "was GH₵30.00, now GH₵35.00".
+2. **Lemon-mint 500ml.** Sold out. Looking for a substitute: same taste group (sour), same size (500ml) gives Lemon-charcoal 500ml. Status `substituted`. It does not count yet: Ama has to tap **Use this** or **Leave it out**.
+3. Ama taps **Use this**. The function runs again with that choice. Now the line is 3 x Lemon-charcoal 500ml, which needs 3 spaces, but only 2 are left after line 1. The status stays `substituted` (that matters most to show), but the line now carries a suggested quantity of 2 (`cappedQuantity`), and the order no longer fits.
+4. The whole order does not fit, so Pay stays disabled and C7 asks: **Reduce to fit** (Lemon-charcoal becomes 2) or **See next drop**. Ama taps Reduce. Now everything fits: 2 x Raw cane at GH₵35.00 plus 2 x Lemon-charcoal at GH₵45.00 = **GH₵160.00**.
+5. Ama taps **Pay**. The page sends the lines and the total it showed (16000 pesewas) as a check. The server works out the price itself from the menu; if its total were different, it would refuse and C7 would ask "The total is now GH₵X. Continue?". The customer never pays a number they did not see.
+
+At no step did the app swap, reduce or move anything without Ama tapping a button.

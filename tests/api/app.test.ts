@@ -161,7 +161,7 @@ describe('payment flow over HTTP (C5, C6)', () => {
     expect((await fetch(`/api/orders/${mine.orderId}`, { headers: { cookie: theirs.cookie } })).status).toBe(404)
   })
 
-  it('opening the private link logs in, lands on C6 and leaks no referrer', async () => {
+  it('opening the private link logs in, lands a returning customer on C7 and leaks no referrer', async () => {
     const { orderId, cookie } = await newOrder()
     await post(`/api/orders/${orderId}/pay-start`, cookie)
     const paid = (await (
@@ -173,7 +173,7 @@ describe('payment flow over HTTP (C5, C6)', () => {
       // A fresh browser (no cookie) each time: the link works more than once (BR-L1).
       const opened = await fetch(path, { redirect: 'manual' })
       expect(opened.status).toBe(302)
-      expect(opened.headers.get('location')).toBe(`/confirmed/${orderId}`)
+      expect(opened.headers.get('location')).toBe('/same-again')
       expect(opened.headers.get('referrer-policy')).toBe('no-referrer')
       const session = opened.headers.getSetCookie().find((c) => c.startsWith('gc_session='))
       expect(session).toMatch(/HttpOnly/i)
@@ -186,5 +186,127 @@ describe('payment flow over HTTP (C5, C6)', () => {
     const opened = await fetch(`/c/${'x'.repeat(43)}`, { redirect: 'manual' })
     expect(opened.status).toBe(302)
     expect(opened.headers.get('location')).toBe('/link-invalid')
+  })
+})
+
+describe('returning customer: /api/me, reminders and the C7 two-step reorder', () => {
+  async function paidCustomer() {
+    const next = nextDropResponse.parse(await $fetch('/api/drops/next'))
+    const item = next.menu[0]!
+    const created = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        dropId: next.drop!.id,
+        lines: [{ menuItemId: item.id, quantity: 2 }],
+        firstName: 'Sample',
+        phone: '020 000 0010',
+        fulfilment: 'pickup',
+        idempotencyKey: crypto.randomUUID()
+      })
+    })
+    const cookie = created.headers.getSetCookie().find((c) => c.startsWith('gc_session='))!.split(';')[0]!
+    const { orderId } = (await created.json()) as { orderId: string }
+    const headers = { 'content-type': 'application/json', cookie }
+    await fetch(`/api/orders/${orderId}/pay-start`, { method: 'POST', headers })
+    await fetch('/api/payments/simulate', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ orderId, reference: `API-${crypto.randomUUID()}`, outcome: 'success' })
+    })
+    return { cookie, headers, next, item }
+  }
+
+  it('/api/me answers only with a session, and only with that customer\'s data', async () => {
+    expect((await fetch('/api/me')).status).toBe(404)
+    const a = await paidCustomer()
+    const me = (await (await fetch('/api/me', { headers: { cookie: a.cookie } })).json()) as {
+      phoneMasked: string
+      lastOrder: { lines: { quantity: number }[] }
+    }
+    expect(me.phoneMasked).toMatch(/010$/)
+    expect(me.lastOrder.lines[0]!.quantity).toBe(2)
+    expect(JSON.stringify(me)).not.toContain('0000010')
+  })
+
+  it('opt-in then Stop reminders; opting in again is refused (BR-R8)', async () => {
+    const a = await paidCustomer()
+    const post = (path: string, body: unknown) => fetch(path, { method: 'POST', headers: a.headers, body: JSON.stringify(body) })
+    expect((await post('/api/reminders/optin', { channel: 'whatsapp', frequency: 'every_drop', source: 'c6' })).status).toBe(200)
+    expect((await post('/api/reminders/optout', { choice: 'stop', source: 'c6' })).status).toBe(200)
+    expect((await post('/api/reminders/optin', { channel: 'sms', frequency: 'monthly', source: 'c7' })).status).toBe(409)
+  })
+
+  it('two steps: open C7 (its data), press Pay, and a requested order exists with server-side prices', async () => {
+    const a = await paidCustomer()
+    // Step 1: what C7 loads on opening, with no typing.
+    const me = (await (await fetch('/api/me', { headers: { cookie: a.cookie } })).json()) as {
+      lastOrder: { lines: { menuItemId: string; quantity: number }[] }
+    }
+    const lines = me.lastOrder.lines.map(({ menuItemId, quantity }) => ({ menuItemId, quantity }))
+    const expectedTotalPesewas = 2 * a.item.pricePesewas
+    // Step 2: Pay.
+    const placed = await fetch('/api/orders', {
+      method: 'POST',
+      headers: a.headers,
+      body: JSON.stringify({
+        reorder: true,
+        dropId: a.next.drop!.id,
+        lines,
+        fulfilment: 'pickup',
+        idempotencyKey: crypto.randomUUID(),
+        expectedTotalPesewas
+      })
+    })
+    expect(placed.status).toBe(201)
+    const { orderId } = (await placed.json()) as { orderId: string }
+    const summary = (await (await fetch(`/api/orders/${orderId}`, { headers: { cookie: a.cookie } })).json()) as {
+      status: string
+      totalPesewas: number
+      lines: { menuItemId: string; quantity: number; unitPricePesewas: number }[]
+    }
+    expect(summary.status).toBe('requested')
+    expect(summary.lines).toMatchObject([{ menuItemId: a.item.id, quantity: 2, unitPricePesewas: a.item.pricePesewas }])
+    expect(summary.totalPesewas).toBe(expectedTotalPesewas)
+  })
+
+  it('regression: C7 never trusts client prices', async () => {
+    const a = await paidCustomer()
+    const reorder = (extra: Record<string, unknown>, lineExtra: Record<string, unknown> = {}) =>
+      fetch('/api/orders', {
+        method: 'POST',
+        headers: a.headers,
+        body: JSON.stringify({
+          reorder: true,
+          dropId: a.next.drop!.id,
+          lines: [{ menuItemId: a.item.id, quantity: 1, ...lineExtra }],
+          fulfilment: 'pickup',
+          idempotencyKey: crypto.randomUUID(),
+          expectedTotalPesewas: a.item.pricePesewas,
+          ...extra
+        })
+      })
+    // Price fields are rejected outright.
+    expect((await reorder({}, { unitPricePesewas: 1 })).status).toBe(400)
+    expect((await reorder({ totalPesewas: 1 })).status).toBe(400)
+    // expectedTotalPesewas is only a guard: a wrong value is refused with the real total, nothing stored.
+    const guarded = await reorder({ expectedTotalPesewas: 1 })
+    expect(guarded.status).toBe(409)
+    const body = (await guarded.json()) as { data: { reason: string; totalPesewas: number } }
+    expect(body.data).toMatchObject({ reason: 'price_changed', totalPesewas: a.item.pricePesewas })
+    // A reorder without a session is refused, so details can never come from someone else.
+    const anonymous = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        reorder: true,
+        dropId: a.next.drop!.id,
+        lines: [{ menuItemId: a.item.id, quantity: 1 }],
+        fulfilment: 'pickup',
+        idempotencyKey: crypto.randomUUID(),
+        expectedTotalPesewas: a.item.pricePesewas
+      })
+    })
+    expect(anonymous.status).toBe(404)
   })
 })

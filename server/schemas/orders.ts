@@ -30,5 +30,25 @@ export const createOrderBody = z.discriminatedUnion('fulfilment', [
 
 export type CreateOrderBody = z.infer<typeof createOrderBody>
 
+/**
+ * POST /api/orders reorder body (C7). No name, phone or address: the server copies them from the
+ * session's customer. No prices either: lines are strict, so unitPricePesewas or totalPesewas is
+ * rejected. expectedTotalPesewas is a guard only, compared with the server's own total.
+ */
+const reorderBase = {
+  reorder: z.literal(true),
+  dropId: base.dropId,
+  lines: base.lines,
+  idempotencyKey: base.idempotencyKey,
+  expectedTotalPesewas: z.number().int().nonnegative()
+}
+
+export const reorderBody = z.discriminatedUnion('fulfilment', [
+  z.strictObject({ ...reorderBase, fulfilment: z.literal('pickup') }),
+  z.strictObject({ ...reorderBase, fulfilment: z.literal('delivery'), deliveryAreaId: z.string().min(1) })
+])
+
+export type ReorderBody = z.infer<typeof reorderBody>
+
 /** Field name to messages, for inline errors on C3. */
 export type FieldErrors = Partial<Record<'firstName' | 'phone' | 'deliveryAddress' | 'deliveryAreaId' | 'lines', string[]>>

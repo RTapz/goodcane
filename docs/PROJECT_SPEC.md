@@ -148,7 +148,7 @@ There are no passwords. All access uses random tokens whose hashes are stored, n
 
 - **BR-L1** `access_tokens` has kinds: `link` (long-lived private link), `session` (one per device, held in a cookie), `reminder` (P1: one per reminder, expires at that drop's cut-off).
 - **BR-L2** Tokens are 32 random bytes, base64url. Store only the SHA-256 hash.
-- **BR-L3** Opening `/c/{token}` or `/r/{token}` validates the hash, expiry and revocation, then creates a `session` token and sets it as a cookie (HttpOnly, Secure, SameSite=Lax, sliding 90 days, sample). The cookie is how the same browser is recognised (primary route 1). A `link` token has no expiry and works every time it is opened until revoked; opening it lands on the customer's latest paid order (C6), or C1 if there is none. An invalid link lands on a plain "this link no longer works" page.
+- **BR-L3** Opening `/c/{token}` or `/r/{token}` validates the hash, expiry and revocation, then creates a `session` token and sets it as a cookie (HttpOnly, Secure, SameSite=Lax, sliding 90 days, sample). The cookie is how the same browser is recognised (primary route 1). A `link` token has no expiry and works every time it is opened until revoked; opening it lands on C7 "Same again?" when the customer has a paid order and a drop is open ahead, otherwise on C1 with a short welcome message. An invalid link lands on a plain "this link no longer works" page.
 - **BR-L4** On first order create the customer and a `session` token. The `link` token is created on the batch card confirmation (C6), the only place its raw value is shown, **once**, with Copy, Send to my WhatsApp (share sheet) and Add to home screen. (Only hashes are stored, so the link cannot be created earlier and shown later.)
 - **BR-L9** Phone numbers are Ghana numbers stored as `+233` followed by 9 digits. Accepted input: `0XXXXXXXXX` or `+233XXXXXXXXX`, with spaces and hyphens ignored. Anything else is rejected with a clear message. No network-prefix check (sample data only).
 - **BR-L5** Every reminder message the owner sends includes a fresh `reminder` link (primary route 2).
@@ -158,14 +158,14 @@ There are no passwords. All access uses random tokens whose hashes are stored, n
 - **BR-L10** On C6 the customer can make a new private link (for example after losing the one shown once). This revokes their previous link: the customer-side counterpart of BR-L6.
 
 ### 5.7 Reminders and consent
-- **BR-R1** Opt-in appears on C6, after payment success, not in checkout. Fields: channel (WhatsApp, SMS, None) and "How often should we remind you?" (every drop, every second drop, monthly). Nothing is preselected; None is a real, equal option.
+- **BR-R1** Opt-in appears on C6, after payment success, not in checkout. Fields: channel (WhatsApp, SMS, None) and "How often should we remind you?" (every drop, every second drop, monthly). Nothing is preselected; None is a real, equal option. Frequency is asked only after WhatsApp or SMS is chosen. Choosing None writes an `opt_out` row with channel `none` and sets the customer's channel to `none`. Opt-in and opt-out count as activity for BR-DP1.
 - **BR-R2** Every opt-in or opt-out is an append-only row in `consent_events` (customer, action, channel, frequency, time, source).
 - **BR-R3** The app never sends. A due reminder creates a `reminders` row with status `queued`. The owner presses Send, which opens a prefilled `wa.me` chat (SMS: show text to copy), and the row becomes `sent`.
 - **BR-R4** Reminder due time: a sample number of days before cut-off (sample: 2) for the customer's chosen frequency.
 - **BR-R5** **One chase maximum:** at most one reminder per customer per drop. If there is no reply and no order, do not send another for that drop.
 - **BR-R6** If an opted-in customer has not started a chat 24 hours after opting in, show the owner a single optional "confirm" nudge, at most once per opt-in event. (Reminders slice: this needs its own column, probably `customers.confirm_nudge_sent_at`; not in the first migration.)
 - **BR-R7** The reminder queue query must exclude: opted out, channel None, inactive for the retention period, deleted, already ordered for that drop, reminder already sent for that drop. Enforce this in the query, not only in the UI.
-- **BR-R8** "Stop reminders" writes an opt-out event immediately. Resubscribe is available only to the customer, on C9, and is a fresh explicit opt-in. The business can never re-enable it.
+- **BR-R8** "Stop reminders" writes an opt-out event immediately. Resubscribe is available only to the customer, on C9, and is a fresh explicit opt-in. The business can never re-enable it. The customer's consent state comes from their latest consent row: none yet, declined (None), opted in, or stopped. A customer with no choice yet, or who chose None, may opt in later from a small "Reminder settings" control on C6 or C7 (a new `opt_in` row, source `c6` or `c7`). After "Stop reminders", opt-in is refused by the server until C9. While opted in, "Stop reminders" is a one-tap control that never shares a button with any order action (BR-X2).
 
 ### 5.8 Data collected and retention
 
@@ -225,7 +225,7 @@ A persistent DEMO banner appears on all pages. Mobile first: single column at 36
 | C4 | **Review and pay** | Summary, hold countdown, demo payment notice | P0 |
 | C5 | **Simulated payment** | Success, failed, no response. Retry keeps the hold | P0 |
 | C6 | **Batch card (confirmation)** | "Paid and confirmed", pickup or delivery details, private link with Copy, Send to my WhatsApp, Add to home screen, then the reminder opt-in | P0 |
-| C7 | **Same again?** | See 6.3. The flawless screen | P0 |
+| C7 | **Same again?** | See 6.3. The flawless screen. Returning customers skip C3 and C4: Pay places the order with their saved details (server-side) and goes straight to C5 | P0 |
 | C8 | **Edge states** | Drop closed (next drop), drop full (move, waitlist, cancel), hold expired, lost link (message GoodCane) | P0 for closed, full and hold expired; P1 for the rest |
 | C9 | **Manage** | Order history, cancel order (confirm dialog), reminder settings, stop reminders, resubscribe, delete my data | P1 |
 | C0 | **About this demo** | What is real versus simulated, assumptions register, data practices, links | P1 |
@@ -244,9 +244,13 @@ A persistent DEMO banner appears on all pages. Mobile first: single column at 36
 
 ### 6.3 C7 "Same again?" acceptance criteria (must all pass)
 1. Opens with no typing, from a private link, a reminder link or a recognised cookie.
-2. Next drop date, cut-off and spaces left are visible without scrolling.
+2. Next drop date, cut-off and spaces left are visible without scrolling on a 360 × 640 screen, together with the usual order, the total and the bottom-anchored Pay button (a usual of more than 2 lines collapses to a summary with "Show items").
 3. "Your usual" is prefilled from the last paid order. Two taps from opening to the payment screen (open, then Pay). Quantity can be changed inline.
 4. Edge cases each have a next step: usual item unavailable (offer the nearest flavour in the same taste group), price changed (show clearly), drop full (ask first), drop closed (show next drop), hold timer visible.
+   - **Nearest flavour:** same taste group and same size first, then the other size; non-specials before drop specials, then by name. Offered with one tap to accept, never swapped silently.
+   - **Price or fee changed:** the old and new amounts are shown on the line. If the total has changed since the page was shown, the server answers `price_changed` with the new total and C7 asks "The total is now GH₵X. Continue?".
+   - **Drop full:** quantities that no longer fit get a suggested lower quantity; the customer chooses "Reduce" or "See next drop". Nothing changes on its own.
+   - **Delivery area gone or fee changed:** shown like a price change; if the area is gone, the customer chooses pickup or updates details on C3.
 5. Page is light and loads in about 3 seconds on a mid-range phone on a weak connection (assumed target).
 6. Three people who have never seen it complete it on a phone with no instructions. Record the times for the write-up.
 
@@ -317,15 +321,15 @@ Key endpoints (indicative):
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/drops/next` | Next open drop, spaces left |
-| `POST /api/orders` | Create a `requested` order with no hold (BR-O9). Use the customer from the valid session (updating its first name and phone), otherwise create a new customer and a session. Never look up a customer by phone at order time (it would expose their history, BR-L7). A repeated idempotency key returns the existing order id only; with another browser's session it returns 409. |
+| `POST /api/orders` | Create a `requested` order with no hold (BR-O9). Use the customer from the valid session (updating its first name and phone), otherwise create a new customer and a session. Never look up a customer by phone at order time (it would expose their history, BR-L7). A repeated idempotency key returns the existing order id only; with another browser's session it returns 409. **Reorder variant (C7):** `{ reorder: true, dropId, lines, fulfilment, deliveryAreaId?, idempotencyKey, expectedTotalPesewas }` from a valid session only; first name, phone and address are copied on the server from the customer and their last paid order, so the full phone never reaches the browser. `expectedTotalPesewas` is a guard only: never stored, never used as a price; if it differs from the server-computed total the answer is 409 `price_changed` with the new total. Client price fields (`unitPricePesewas`, `totalPesewas`) are rejected. |
 | `GET /api/orders/:id` | Order summary for C4, only for the session that owns the order; otherwise 404 |
 | `POST /api/orders/:id/pay-start` | Create the hold (BR-O1, BR-C4): one transaction, drop row locked, server-time cut-off, spaces recomputed; an existing active hold is returned unchanged; 409 `not_enough_space` records `turned_away` once per order. Session must own the order. Also used for "Refresh availability" (BR-P5) |
 | `POST /api/payments/simulate` | Simulated provider callback: `{ orderId, reference, outcome }`, session must own the order, idempotent by reference (BR-P3). A confirmed first payment returns the private link once |
 | `POST /api/me/link` | Make a new private link for the session's customer, revoking the old one (BR-L10); returns it once |
 | `GET /c/:token` | Private link: validates, creates a session cookie, redirects to the latest paid order (BR-L3) |
-| `GET /api/me` | Customer from session cookie |
+| `GET /api/me` | Customer from the session cookie only (404 without one): first name, masked phone, reminder state, and the last paid order's lines, fulfilment, area and fee. No address and no full phone |
 | `POST /api/orders/:id/cancel` | Cancel with confirmation flag |
-| `POST /api/reminders/optin`, `/optout` | Consent events |
+| `POST /api/reminders/optin`, `/optout` | Consent events, session required (BR-R1, BR-R2, BR-R8). `optin`: `{ channel: whatsapp or sms, frequency, source: c6 or c7 }`, refused after "Stop reminders". `optout`: `{ choice: none or stop, source }` |
 | `GET /api/owner/drop/:id/demand` | Demand view numbers |
 | `POST /api/owner/drop/:id/close` | Close batch |
 

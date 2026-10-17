@@ -21,6 +21,11 @@ export interface PlaceOrderInput {
   phone: string
   fulfilment: { kind: 'pickup' } | { kind: 'delivery'; areaId: string; address: string }
   idempotencyKey: string
+  /**
+   * C7 reorder guard only: the total the customer saw. Never stored and never used as a price;
+   * if the server-computed total differs, the order is refused with price_changed.
+   */
+  expectedTotalPesewas?: number
 }
 
 export interface PlaceOrderContext {
@@ -38,6 +43,7 @@ export type PlaceOrderResult =
   | { kind: 'rejected'; reason: 'drop_closed' }
   | { kind: 'rejected'; reason: 'not_enough_space'; spacesLeft: number }
   | { kind: 'rejected'; reason: 'idempotency_conflict' }
+  | { kind: 'rejected'; reason: 'price_changed'; totalPesewas: number }
   | { kind: 'invalid'; reason: 'unknown_drop' | 'invalid_item' | 'unknown_area' }
 
 /** Thrown inside the transaction to roll it back and hand a result to the caller. */
@@ -96,6 +102,11 @@ export async function placeOrder(db: Db, input: PlaceOrderInput, ctx: PlaceOrder
         price = priceOrder(priced, fulfilment, areas)
       } catch {
         throw new Outcome({ kind: 'invalid', reason: 'unknown_area' })
+      }
+
+      // Reorder guard: the customer must see the real total before paying it.
+      if (input.expectedTotalPesewas !== undefined && input.expectedTotalPesewas !== price.totalPesewas) {
+        throw new Outcome({ kind: 'rejected', reason: 'price_changed', totalPesewas: price.totalPesewas })
       }
 
       // Advisory capacity check: paid units plus active holds. Nothing is reserved (BR-O9).

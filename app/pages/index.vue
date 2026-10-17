@@ -1,9 +1,15 @@
 <script setup lang="ts">
 // C1 Landing: "This drop".
 const { data, status, refresh } = await useNextDrop()
-const { customer } = useCustomer()
+const { me, ready } = useMe()
+await ready
+const { notice, clearNotice } = useOrderNotice()
+const route = useRoute()
 
 const drop = computed(() => data.value?.drop ?? null)
+// A returning customer with a previous paid order gets the one-tap way back (C7).
+const canReorder = computed(() => !!me.value?.lastOrder && !!drop.value)
+onBeforeUnmount(clearNotice)
 </script>
 
 <template>
@@ -14,10 +20,17 @@ const drop = computed(() => data.value?.drop ?? null)
     <StateError v-else-if="status === 'error'" @retry="refresh()" />
 
     <template v-else-if="data">
-      <section v-if="customer" class="rounded-lg bg-cane-50 p-3" aria-label="Welcome back">
-        <p class="font-bold text-cane-900">Welcome back, {{ customer.firstName }}. Same again?</p>
-        <UButton to="/order" class="mt-2 min-h-11" label="See my usual" />
+      <p v-if="notice" role="status" class="rounded-lg border border-amber-400 bg-white p-3 font-semibold text-stone-900">
+        {{ notice }}
+      </p>
+
+      <section v-if="me && canReorder" class="rounded-lg bg-cane-50 p-3" aria-label="Welcome back">
+        <p class="font-bold text-cane-900">Welcome back, {{ me.firstName }}. Same again?</p>
+        <UButton to="/same-again" class="mt-2 min-h-11" label="Order my usual" />
       </section>
+      <p v-else-if="route.query.welcome" role="status" class="rounded-lg bg-cane-50 p-3 font-semibold text-cane-900">
+        Welcome{{ me?.firstName ? `, ${me.firstName}` : '' }}. Start an order for the next drop below.
+      </p>
 
       <UAlert
         v-if="data.closed && data.missedDrop"

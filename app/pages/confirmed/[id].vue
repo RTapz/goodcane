@@ -79,6 +79,9 @@ async function makeNewLink() {
         <p v-if="linkError" role="alert" class="text-sm font-semibold text-red-700">{{ linkError }}</p>
       </section>
 
+      <!-- BR-R1: opt-in after payment success, never in checkout. Loaded lazily, below the fold. -->
+      <LazyReminderOptIn source="c6" />
+
       <UButton to="/" block size="xl" color="neutral" variant="outline" class="min-h-12" label="Back to this drop" />
     </template>
 
