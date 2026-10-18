@@ -41,7 +41,7 @@ export default defineNuxtConfig({
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { name: 'robots', content: 'noindex, nofollow' },
-        { name: 'theme-color', content: '#1f5c2f' }
+        { name: 'theme-color', content: '#121d16' }
       ],
       // Installable from C6 ("Add to home screen"). Icons are a plain text "GD" tile.
       link: [

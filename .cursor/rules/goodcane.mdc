@@ -42,7 +42,7 @@ alwaysApply: true
 ## UI
 - Mobile first. Design for a 360px wide screen, single column, primary action anchored at the bottom, tap targets at least 44px.
 - Every data view needs loading, empty and error states. Every input needs a visible label. Aim for WCAG AA colour contrast.
-- Keep pages light: no heavy images, lazy-load anything below the fold, no third-party trackers.
+- Keep pages light: only small, compressed images with fixed sizes (the flavour bottles, spec 6.4), lazy-load anything below the fold, no third-party trackers.
 - Copy is British English, friendly and plain. Brand direction is green and cream.
 - C7 "Same again?" must meet its acceptance criteria in the spec (section 6.3) before it is called done.
 

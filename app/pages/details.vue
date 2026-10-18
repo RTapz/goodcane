@@ -124,27 +124,27 @@ async function submit() {
 
 <template>
   <div class="space-y-4 pb-28">
-    <h1 class="text-2xl font-extrabold text-stone-900">Your details</h1>
+    <h1 class="text-2xl text-ink">Your details</h1>
 
     <div v-if="units === 0" class="gc-card p-4">
-      <p class="text-stone-800">Your order is empty.</p>
+      <p class="text-ink">Your order is empty.</p>
       <UButton to="/order" class="mt-3 min-h-11" label="Build your order" />
     </div>
 
     <template v-else>
       <section class="gc-card p-4" aria-label="Your order">
         <ul class="space-y-1">
-          <li v-for="line in priced" :key="line.item.id" class="flex justify-between gap-2 text-stone-900">
+          <li v-for="line in priced" :key="line.item.id" class="flex justify-between gap-2 text-ink">
             <span class="flex items-center gap-2">
-              <FlavourTile :colour="flavourColour(line.item.name)" size="sm" />
+              <FlavourBottle :name="line.item.name" size="xs" eager />
               <span>{{ line.quantity }} x {{ line.item.name }} {{ line.item.size }}</span>
             </span>
             <span>{{ formatPesewas(line.quantity * line.item.pricePesewas) }}</span>
           </li>
         </ul>
-        <p class="mt-2 border-t border-stone-200 pt-2 text-sm text-stone-700">
+        <p class="mt-2 border-t border-line pt-2 text-sm text-ink-muted">
           {{ units }} {{ units === 1 ? 'bottle' : 'bottles' }}, {{ formatPesewas(totalPesewas) }}
-          <NuxtLink to="/order" class="ml-1 font-semibold text-cane-700 underline">Change</NuxtLink>
+          <NuxtLink to="/order" class="ml-1 font-semibold text-sage underline">Change</NuxtLink>
         </p>
       </section>
 
@@ -159,7 +159,7 @@ async function submit() {
               maxlength="50"
               :aria-invalid="invalid"
               :aria-describedby="describedBy"
-              class="block min-h-12 w-full rounded-xl border border-stone-400 bg-white px-3 text-lg text-stone-900 aria-invalid:border-red-700"
+              class="block min-h-12 w-full rounded-xl border border-line-strong bg-panel-raised px-3 text-lg text-ink aria-invalid:border-danger"
             />
           </template>
         </FormField>
@@ -175,19 +175,19 @@ async function submit() {
               maxlength="30"
               :aria-invalid="invalid"
               :aria-describedby="describedBy"
-              class="block min-h-12 w-full rounded-xl border border-stone-400 bg-white px-3 text-lg text-stone-900 aria-invalid:border-red-700"
+              class="block min-h-12 w-full rounded-xl border border-line-strong bg-panel-raised px-3 text-lg text-ink aria-invalid:border-danger"
             />
           </template>
         </FormField>
 
         <fieldset>
-          <legend class="font-semibold text-stone-900">How do you want to get it?</legend>
+          <legend class="font-semibold text-ink">How do you want to get it?</legend>
           <div class="mt-1 grid grid-cols-2 gap-2">
             <label
               v-for="option in [{ value: 'pickup', label: 'Pickup' }, { value: 'delivery', label: 'Delivery' }]"
               :key="option.value"
-              class="flex min-h-12 cursor-pointer items-center justify-center rounded-2xl border-2 px-2 font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-cane-700"
-              :class="form.fulfilment === option.value ? 'border-cane-700 bg-cane-700 text-white' : 'border-stone-400 bg-white text-stone-900'"
+              class="flex min-h-12 cursor-pointer items-center justify-center rounded-2xl border-2 px-2 font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-sage"
+              :class="form.fulfilment === option.value ? 'border-sage bg-sage text-canvas' : 'border-line-strong bg-panel-raised text-ink'"
             >
               <input v-model="form.fulfilment" type="radio" name="fulfilment" :value="option.value" class="sr-only" />
               {{ option.label }}
@@ -206,19 +206,19 @@ async function submit() {
                 maxlength="200"
                 :aria-invalid="invalid"
                 :aria-describedby="describedBy"
-                class="block w-full rounded-xl border border-stone-400 bg-white px-3 py-2 text-lg text-stone-900 aria-invalid:border-red-700"
+                class="block w-full rounded-xl border border-line-strong bg-panel-raised px-3 py-2 text-lg text-ink aria-invalid:border-danger"
               />
             </template>
           </FormField>
 
           <fieldset :aria-describedby="errors.deliveryAreaId ? 'area-error' : undefined">
-            <legend class="font-semibold text-stone-900">Delivery area</legend>
+            <legend class="font-semibold text-ink">Delivery area</legend>
             <div class="mt-1 space-y-2">
               <label
                 v-for="option in areas"
                 :key="option.id"
-                class="flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-2xl border-2 px-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-cane-700"
-                :class="form.deliveryAreaId === option.id ? 'border-cane-700 bg-cane-50' : 'border-stone-300 bg-white'"
+                class="flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-2xl border-2 px-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-sage"
+                :class="form.deliveryAreaId === option.id ? 'border-sage bg-mint-panel' : 'border-line bg-panel-raised'"
               >
                 <span class="flex items-center gap-2">
                   <input
@@ -227,31 +227,31 @@ async function submit() {
                     name="area"
                     :value="option.id"
                     :aria-invalid="!!errors.deliveryAreaId"
-                    class="size-5 accent-cane-700"
+                    class="size-5 accent-sage"
                   />
-                  <span class="font-semibold text-stone-900">{{ option.name }}</span>
+                  <span class="font-semibold text-ink">{{ option.name }}</span>
                 </span>
-                <span class="text-sm text-stone-700">{{ formatPesewas(option.feePesewas) }} fee</span>
+                <span class="text-sm text-ink-muted">{{ formatPesewas(option.feePesewas) }} fee</span>
               </label>
             </div>
-            <p v-if="errors.deliveryAreaId" id="area-error" class="mt-1 text-sm font-semibold text-red-700">
+            <p v-if="errors.deliveryAreaId" id="area-error" class="mt-1 text-sm font-semibold text-danger">
               {{ errors.deliveryAreaId[0] }}
             </p>
           </fieldset>
         </template>
-        <p v-else class="rounded-2xl bg-white p-3 text-sm text-stone-700">
+        <p v-else class="rounded-2xl bg-panel-raised p-3 text-sm text-ink-muted">
           Pickup at the pickup point, Accra, on drop day.
         </p>
 
-        <p v-if="submitError" role="alert" class="rounded-2xl border border-red-300 bg-white p-3 font-semibold text-stone-900">
+        <p v-if="submitError" role="alert" class="rounded-2xl border border-danger/60 bg-panel-raised p-3 font-semibold text-ink">
           {{ submitError }}
         </p>
       </form>
 
       <StickyActionBar>
         <div>
-          <p class="font-bold text-stone-900">{{ formatPesewas(total) }}</p>
-          <p class="text-sm text-stone-700">{{ area ? `Includes ${formatPesewas(area.feePesewas)} delivery fee` : 'No delivery fee' }}</p>
+          <p class="font-bold text-ink">{{ formatPesewas(total) }}</p>
+          <p class="text-sm text-ink-muted">{{ area ? `Includes ${formatPesewas(area.feePesewas)} delivery fee` : 'No delivery fee' }}</p>
         </div>
         <UButton
           type="submit"

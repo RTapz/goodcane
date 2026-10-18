@@ -5,13 +5,13 @@ const emit = defineEmits<{ change: [quantity: number] }>()
 </script>
 
 <template>
-  <div class="inline-flex items-center gap-1 rounded-full bg-cane-50 p-0.5" role="group" :aria-label="`Quantity of ${props.label}`">
+  <div class="inline-flex items-center gap-1 rounded-full bg-mint-panel p-0.5" role="group" :aria-label="`Quantity of ${props.label}`">
     <UButton
       :aria-label="`Remove one ${props.label}`"
       :disabled="props.quantity === 0"
       color="neutral"
       variant="ghost"
-      class="size-11 justify-center bg-white text-xl text-cane-900 shadow-sm"
+      class="size-11 justify-center bg-panel-raised text-xl text-sage shadow-sm"
       @click="emit('change', props.quantity - 1)"
     >
       &minus;

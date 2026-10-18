@@ -41,13 +41,13 @@ async function rebuild() {
 
 <template>
   <div class="space-y-4 pb-28">
-    <h1 class="text-2xl font-extrabold text-stone-900">Review and pay</h1>
+    <h1 class="text-2xl text-ink">Review and pay</h1>
 
     <StateLoading v-if="status === 'pending' && !order" />
 
     <div v-else-if="notFound" class="gc-card p-4">
-      <h2 class="text-xl font-bold text-stone-900">We can't find this order on this device</h2>
-      <p class="mt-1 text-stone-700">Orders can only be opened on the phone or browser that placed them.</p>
+      <h2 class="text-xl text-ink">We can't find this order on this device</h2>
+      <p class="mt-1 text-ink-muted">Orders can only be opened on the phone or browser that placed them.</p>
       <UButton to="/" class="mt-3 min-h-11" label="Back to this drop" />
     </div>
 
@@ -55,64 +55,64 @@ async function rebuild() {
 
     <template v-else-if="order">
       <div v-if="inactive" role="status" class="gc-card p-4">
-        <h2 class="text-xl font-bold text-stone-900">This request has lapsed</h2>
-        <p class="mt-1 text-stone-700">It was not paid in time, so nothing is reserved. Your items are kept so you can start again.</p>
+        <h2 class="text-xl text-ink">This request has lapsed</h2>
+        <p class="mt-1 text-ink-muted">It was not paid in time, so nothing is reserved. Your items are kept so you can start again.</p>
         <UButton class="mt-3 min-h-11" label="Rebuild my order" @click="rebuild" />
       </div>
 
       <div v-else-if="order.drop.closed" role="status" class="gc-card p-4">
-        <h2 class="text-xl font-bold text-stone-900">Orders for {{ formatDropDate(order.drop.dropAt) }} have closed</h2>
-        <p class="mt-1 text-stone-700">This order was not paid before the cut-off. You can reserve for the next drop.</p>
+        <h2 class="text-xl text-ink">Orders for {{ formatDropDate(order.drop.dropAt) }} have closed</h2>
+        <p class="mt-1 text-ink-muted">This order was not paid before the cut-off. You can reserve for the next drop.</p>
         <UButton to="/" class="mt-3 min-h-11" label="See the next drop" />
       </div>
 
       <section class="gc-card p-4" aria-labelledby="summary-heading">
-        <h2 id="summary-heading" class="font-bold text-stone-900">For {{ formatDropDate(order.drop.dropAt) }}</h2>
+        <h2 id="summary-heading" class="text-ink">For {{ formatDropDate(order.drop.dropAt) }}</h2>
         <ul class="mt-2 space-y-1">
-          <li v-for="line in order.lines" :key="line.menuItemId" class="flex justify-between gap-2 text-stone-900">
+          <li v-for="line in order.lines" :key="line.menuItemId" class="flex justify-between gap-2 text-ink">
             <span class="flex items-center gap-2">
-              <FlavourTile :colour="flavourColour(line.name)" size="sm" />
+              <FlavourBottle :name="line.name" size="xs" eager />
               <span>{{ line.quantity }} x {{ line.name }} {{ line.size }}</span>
             </span>
             <span>{{ formatPesewas(line.quantity * line.unitPricePesewas) }}</span>
           </li>
-          <li v-if="order.feePesewas > 0" class="flex justify-between gap-2 text-stone-700">
+          <li v-if="order.feePesewas > 0" class="flex justify-between gap-2 text-ink-muted">
             <span>Delivery fee</span>
             <span>{{ formatPesewas(order.feePesewas) }}</span>
           </li>
         </ul>
-        <p class="mt-2 flex justify-between border-t border-stone-200 pt-2 text-lg font-bold text-stone-900">
+        <p class="mt-2 flex justify-between border-t border-line pt-2 text-lg font-bold text-ink">
           <span>Total</span>
           <span>{{ formatPesewas(order.totalPesewas) }}</span>
         </p>
       </section>
 
       <section class="gc-card p-4" aria-labelledby="details-heading">
-        <h2 id="details-heading" class="font-bold text-stone-900">{{ order.fulfilment === 'delivery' ? 'Delivery' : 'Pickup' }}</h2>
-        <p v-if="order.fulfilment === 'delivery'" class="mt-1 text-stone-800">{{ order.address }}, {{ order.area }}</p>
-        <p v-else class="mt-1 text-stone-800">Pickup point, Accra, on drop day</p>
-        <p class="mt-1 text-stone-800">{{ order.firstName }}, {{ order.phoneMasked }}</p>
-        <NuxtLink to="/details" class="mt-1 inline-flex min-h-11 items-center font-semibold text-cane-700 underline">Change details</NuxtLink>
+        <h2 id="details-heading" class="text-ink">{{ order.fulfilment === 'delivery' ? 'Delivery' : 'Pickup' }}</h2>
+        <p v-if="order.fulfilment === 'delivery'" class="mt-1 text-ink">{{ order.address }}, {{ order.area }}</p>
+        <p v-else class="mt-1 text-ink">Pickup point, Accra, on drop day</p>
+        <p class="mt-1 text-ink">{{ order.firstName }}, {{ order.phoneMasked }}</p>
+        <NuxtLink to="/details" class="mt-1 inline-flex min-h-11 items-center font-semibold text-sage underline">Change details</NuxtLink>
       </section>
 
       <div v-if="paid" role="status" class="gc-card p-4">
-        <h2 class="text-xl font-bold text-stone-900">This order is paid and confirmed</h2>
+        <h2 class="text-xl text-ink">This order is paid and confirmed</h2>
         <UButton :to="`/confirmed/${order.id}`" class="mt-3 min-h-11" label="See your confirmation" />
       </div>
 
       <template v-else-if="!inactive && !order.drop.closed">
-        <section class="space-y-1 rounded-2xl bg-cream-200 p-4" aria-label="About payment">
-          <p class="font-bold text-stone-900">No money is taken</p>
-          <p class="text-stone-800">Spaces are held for {{ order.holdMinutes }} minutes once you tap Pay.</p>
-          <p class="text-stone-800" aria-live="polite">
+        <section class="space-y-1 rounded-2xl bg-warn-panel p-4" aria-label="About payment">
+          <p class="font-bold text-ink">No money is taken</p>
+          <p class="text-ink">Spaces are held for {{ order.holdMinutes }} minutes once you tap Pay.</p>
+          <p class="text-ink" aria-live="polite">
             {{ spacesLeft === null ? '' : `${plural(spacesLeft, 'space', 'spaces')} left in this drop right now. Your order needs ${units}.` }}
           </p>
         </section>
 
         <StickyActionBar>
           <div>
-            <p class="font-bold text-stone-900">{{ formatPesewas(order.totalPesewas) }}</p>
-            <p class="text-sm text-stone-700">No money is taken</p>
+            <p class="font-bold text-ink">{{ formatPesewas(order.totalPesewas) }}</p>
+            <p class="text-sm text-ink-muted">No money is taken</p>
           </div>
           <UButton :to="`/pay/${order.id}`" size="xl" class="min-h-12 px-8" label="Pay" />
         </StickyActionBar>

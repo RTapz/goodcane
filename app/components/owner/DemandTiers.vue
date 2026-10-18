@@ -9,13 +9,13 @@ const width = (units: number) => `${Math.min(100, (units / Math.max(1, props.cap
 
 <template>
   <div>
-    <div class="flex h-8 w-full overflow-hidden rounded-full border border-stone-400 bg-white" aria-hidden="true">
-      <div class="h-full bg-cane-700" :style="{ width: width(props.paid) }" />
-      <div class="tier-likely h-full border-l-2 border-white" :style="{ width: width(props.likely) }" />
+    <div class="flex h-8 w-full overflow-hidden rounded-full border border-line-strong bg-panel-raised" aria-hidden="true">
+      <div class="h-full bg-sage" :style="{ width: width(props.paid) }" />
+      <div class="tier-likely h-full border-l-2 border-canvas" :style="{ width: width(props.likely) }" />
     </div>
-    <ul class="mt-2 space-y-1 text-stone-900">
+    <ul class="mt-2 space-y-1 text-ink">
       <li class="flex items-center gap-2">
-        <span class="inline-block size-4 shrink-0 rounded-sm bg-cane-700" aria-hidden="true" />
+        <span class="inline-block size-4 shrink-0 rounded-sm bg-sage" aria-hidden="true" />
         <span><strong>Paid {{ props.paid }}</strong> units (firm)</span>
       </li>
       <li class="flex items-center gap-2">
@@ -25,7 +25,7 @@ const width = (units: number) => `${Math.min(100, (units / Math.max(1, props.cap
         </span>
       </li>
       <li class="flex items-center gap-2">
-        <span class="inline-block size-4 shrink-0 rounded-sm border border-stone-400 bg-white" aria-hidden="true" />
+        <span class="inline-block size-4 shrink-0 rounded-sm border border-line-strong bg-panel-raised" aria-hidden="true" />
         <span><strong>{{ props.spacesLeft }}</strong> of {{ props.capacity }} spaces left</span>
       </li>
     </ul>
@@ -35,6 +35,6 @@ const width = (units: number) => `${Math.min(100, (units / Math.max(1, props.cap
 <style scoped>
 /* Amber with diagonal stripes, so Likely differs from Paid by pattern as well as colour. */
 .tier-likely {
-  background: repeating-linear-gradient(135deg, #b45309 0 4px, #f59e0b 4px 8px);
+  background: repeating-linear-gradient(135deg, #d97706 0 4px, #f59e0b 4px 8px);
 }
 </style>

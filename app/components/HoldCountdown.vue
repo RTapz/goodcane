@@ -17,7 +17,7 @@ watch(done, (isDone) => {
 <template>
   <div>
     <!-- role="timer" without aria-live: screen readers are not interrupted every second. -->
-    <p role="timer" class="text-lg font-bold tabular-nums text-stone-900">
+    <p role="timer" class="text-lg font-bold tabular-nums text-ink">
       <template v-if="!done">Your spaces are held for {{ pad(parts.minutes) }}:{{ pad(parts.seconds) }}</template>
       <template v-else>Your hold has expired</template>
     </p>

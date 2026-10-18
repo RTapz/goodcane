@@ -156,11 +156,11 @@ async function pay(expectedTotalPesewas = total.value) {
 
 <template>
   <div v-if="me && last" class="space-y-3 pb-28">
-    <h1 class="text-2xl font-extrabold text-stone-900">Same again, {{ me.firstName }}?</h1>
+    <h1 class="text-2xl text-ink">Same again, {{ me.firstName }}?</h1>
 
     <!-- Drop closed: show the next drop and let the customer choose it. -->
-    <div v-if="closedNotice && targetDrop" role="status" class="rounded-2xl border border-amber-400 bg-white p-3">
-      <p class="font-semibold text-stone-900">
+    <div v-if="closedNotice && targetDrop" role="status" class="rounded-2xl border border-amber-400 bg-panel-raised p-3">
+      <p class="font-semibold text-ink">
         Orders for {{ formatDropDate(next!.missedDrop!.dropAt) }} have closed. Next drop: {{ formatDropDate(targetDrop.dropAt) }}.
       </p>
       <UButton
@@ -172,25 +172,25 @@ async function pay(expectedTotalPesewas = total.value) {
     </div>
 
     <div v-if="!targetDrop" class="gc-card p-4">
-      <p class="font-semibold text-stone-900">No drop is open right now.</p>
+      <p class="font-semibold text-ink">No drop is open right now.</p>
       <UButton to="/" class="mt-2 min-h-11" label="See what's next" />
     </div>
 
     <template v-else>
       <section aria-label="Next drop" class="space-y-0.5">
-        <p class="text-lg font-bold text-stone-900">For {{ formatDropDate(targetDrop.dropAt) }}</p>
+        <p class="text-lg font-bold text-ink">For {{ formatDropDate(targetDrop.dropAt) }}</p>
         <ClientOnly>
           <CutOffCountdown :cut-off-at="targetDrop.cutOffAt" :server-now="next!.serverNow" @reached="refreshDrop()" />
           <template #fallback>
-            <p class="font-bold text-stone-900">Orders close {{ formatCutOff(targetDrop.cutOffAt) }}</p>
+            <p class="font-bold text-ink">Orders close {{ formatCutOff(targetDrop.cutOffAt) }}</p>
           </template>
         </ClientOnly>
-        <p class="text-stone-800">{{ plural(spaces, 'space', 'spaces') }} left</p>
+        <p class="text-ink">{{ plural(spaces, 'space', 'spaces') }} left</p>
       </section>
 
       <!-- Drop full: ask first (BR-F1). -->
-      <div v-if="tooBig.length > 0" role="status" class="rounded-2xl border border-amber-400 bg-white p-3">
-        <p class="font-semibold text-stone-900">Only {{ plural(spaces, 'space is', 'spaces are') }} left for your usual.</p>
+      <div v-if="tooBig.length > 0" role="status" class="rounded-2xl border border-amber-400 bg-panel-raised p-3">
+        <p class="font-semibold text-ink">Only {{ plural(spaces, 'space is', 'spaces are') }} left for your usual.</p>
         <div class="mt-2 flex flex-wrap gap-2">
           <UButton class="min-h-11" label="Reduce to fit" @click="reduceToFit" />
           <UButton
@@ -205,19 +205,19 @@ async function pay(expectedTotalPesewas = total.value) {
       </div>
 
       <section aria-labelledby="usual-heading" class="gc-card p-3">
-        <h2 id="usual-heading" class="font-bold text-stone-900">Your usual</h2>
+        <h2 id="usual-heading" class="text-ink">Your usual</h2>
 
-        <p v-if="usual.lines.length > 2 && !expanded" class="mt-1 text-stone-800">
+        <p v-if="usual.lines.length > 2 && !expanded" class="mt-1 text-ink">
           {{ usual.lines.map((l) => `${l.quantity} x ${(l.item ?? l.substitute)?.name ?? l.last.name}`).join(', ') }}
           <UButton variant="link" class="min-h-11 px-1" label="Show items" @click="expanded = true" />
         </p>
 
-        <ul v-else class="mt-1 divide-y divide-stone-200">
+        <ul v-else class="mt-1 divide-y divide-line">
           <li v-for="line in usual.lines" :key="line.last.menuItemId" class="py-1.5">
             <div class="flex items-center justify-between gap-2">
               <span class="flex min-w-0 items-center gap-2">
-                <FlavourTile :colour="flavourColour((line.item ?? line.last).name)" size="sm" />
-                <span class="text-stone-900">{{ (line.item ?? line.last).name }} {{ (line.item ?? line.last).size }}</span>
+                <FlavourBottle :name="(line.item ?? line.last).name" size="sm" eager />
+                <span class="text-ink">{{ (line.item ?? line.last).name }} {{ (line.item ?? line.last).size }}</span>
               </span>
               <QuantityStepper
                 v-if="line.item"
@@ -228,45 +228,45 @@ async function pay(expectedTotalPesewas = total.value) {
               />
             </div>
 
-            <p v-if="line.price.newPesewas !== null && line.price.newPesewas !== line.price.oldPesewas && line.status !== 'substituted'" class="text-sm text-stone-800">
+            <p v-if="line.price.newPesewas !== null && line.price.newPesewas !== line.price.oldPesewas && line.status !== 'substituted'" class="text-sm text-ink">
               Price changed: was {{ formatPesewas(line.price.oldPesewas) }}, now {{ formatPesewas(line.price.newPesewas) }}
             </p>
 
-            <div v-if="line.status === 'substituted' && !line.accepted" class="mt-1 rounded-xl bg-cream-200 p-2 text-sm text-stone-900">
+            <div v-if="line.status === 'substituted' && !line.accepted" class="mt-1 rounded-xl bg-warn-panel p-2 text-sm text-ink">
               <p>{{ line.last.name }} {{ line.last.size }} is not available. Try {{ line.substitute!.name }} {{ line.substitute!.size }} ({{ formatPesewas(line.substitute!.pricePesewas) }})?</p>
               <div class="mt-1 flex gap-2">
                 <UButton size="sm" class="min-h-11" label="Use this" @click="acceptedSubstitutes = { ...acceptedSubstitutes, [line.last.menuItemId]: true }" />
                 <UButton size="sm" color="neutral" variant="outline" class="min-h-11" label="Leave it out" @click="leftOut = { ...leftOut, [line.last.menuItemId]: true }" />
               </div>
             </div>
-            <p v-else-if="line.status === 'substituted'" class="text-sm text-stone-700">Instead of {{ line.last.name }} {{ line.last.size }}</p>
+            <p v-else-if="line.status === 'substituted'" class="text-sm text-ink-muted">Instead of {{ line.last.name }} {{ line.last.size }}</p>
 
-            <p v-if="line.status === 'unavailable'" class="text-sm text-stone-800">
+            <p v-if="line.status === 'unavailable'" class="text-sm text-ink">
               No similar drink in this drop, so it is left out.
-              <NuxtLink to="/order" class="font-semibold text-cane-700 underline">Choose another</NuxtLink>
+              <NuxtLink to="/order" class="font-semibold text-sage underline">Choose another</NuxtLink>
             </p>
           </li>
         </ul>
 
-        <p v-if="delivery" class="mt-1 text-sm text-stone-800">
+        <p v-if="delivery" class="mt-1 text-sm text-ink">
           Delivery to {{ last.area }}
           <template v-if="feeChanged">(fee was {{ formatPesewas(last.feePesewas) }}, now {{ formatPesewas(feePesewas) }})</template>
         </p>
-        <p v-else class="mt-1 text-sm text-stone-800">Pickup, pickup point, Accra</p>
+        <p v-else class="mt-1 text-sm text-ink">Pickup, pickup point, Accra</p>
       </section>
 
-      <div v-if="areaGone" role="status" class="rounded-2xl border border-amber-400 bg-white p-3">
-        <p class="font-semibold text-stone-900">Delivery to {{ last.area }} is no longer offered.</p>
+      <div v-if="areaGone" role="status" class="rounded-2xl border border-amber-400 bg-panel-raised p-3">
+        <p class="font-semibold text-ink">Delivery to {{ last.area }} is no longer offered.</p>
         <div class="mt-2 flex flex-wrap gap-2">
           <UButton class="min-h-11" label="Switch to pickup" @click="switchedToPickup = true" />
           <UButton color="neutral" variant="outline" class="min-h-11" label="Update details" @click="continueIn('/details')" />
         </div>
       </div>
 
-      <p v-if="payError" role="alert" class="rounded-2xl border border-red-300 bg-white p-3 font-semibold text-stone-900">{{ payError }}</p>
+      <p v-if="payError" role="alert" class="rounded-2xl border border-danger/60 bg-panel-raised p-3 font-semibold text-ink">{{ payError }}</p>
 
       <!-- Below the fold: loaded lazily. -->
-      <NuxtLink to="/order" class="inline-flex min-h-11 items-center font-semibold text-cane-700 underline" @click.prevent="continueIn('/order')">
+      <NuxtLink to="/order" class="inline-flex min-h-11 items-center font-semibold text-sage underline" @click.prevent="continueIn('/order')">
         Change my order
       </NuxtLink>
       <LazyReminderOptIn source="c7" compact />
@@ -274,7 +274,7 @@ async function pay(expectedTotalPesewas = total.value) {
       <!-- Only needed when the server answers price_changed, so its code loads then. -->
       <LazyUModal v-if="newTotal !== null" :open="true" title="The total has changed" @update:open="(v: boolean) => { if (!v) newTotal = null }">
         <template #body>
-          <p class="text-stone-900">The total is now {{ formatPesewas(newTotal ?? 0) }}. Continue?</p>
+          <p class="text-ink">The total is now {{ formatPesewas(newTotal ?? 0) }}. Continue?</p>
           <div class="mt-3 flex gap-2">
             <UButton class="min-h-11" label="Continue" @click="pay(newTotal!); newTotal = null" />
             <UButton color="neutral" variant="outline" class="min-h-11" label="Not now" @click="newTotal = null; refreshDrop()" />
@@ -284,8 +284,8 @@ async function pay(expectedTotalPesewas = total.value) {
 
       <StickyActionBar>
         <div>
-          <p class="font-bold text-stone-900">{{ formatPesewas(total) }}</p>
-          <p class="text-sm text-stone-700">No money is taken</p>
+          <p class="font-bold text-ink">{{ formatPesewas(total) }}</p>
+          <p class="text-sm text-ink-muted">No money is taken</p>
         </div>
         <UButton size="xl" class="min-h-12 px-8" :disabled="!canPay || paying" :loading="paying" label="Pay" @click="pay()" />
       </StickyActionBar>

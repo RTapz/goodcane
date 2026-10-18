@@ -1,9 +1,52 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-/* Darker green for buttons and links so white text meets WCAG AA. */
+/* Heading face: Fraunces semibold, self-hosted Latin subset (SIL OFL, public/fonts/OFL.txt).
+   optional, not preloaded: on a slow first visit headings stay in Georgia rather than delay the
+   page or reflow later; once cached, every page uses Fraunces. */
+@font-face {
+  font-family: 'Fraunces';
+  src: url('/fonts/fraunces-600-latin.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: optional;
+}
+
+/* Dark forest-green theme (spec 6.4). Nuxt UI reads these for its own components. */
 :root {
-  --ui-primary: var(--ui-color-primary-700);
+  --ui-bg: var(--color-panel);
+  --ui-bg-muted: var(--color-panel);
+  --ui-bg-elevated: var(--color-panel-raised);
+  --ui-bg-accented: var(--color-line);
+  --ui-text: var(--color-ink);
+  --ui-text-highlighted: var(--color-ink);
+  --ui-text-toned: var(--color-ink-muted);
+  --ui-text-muted: var(--color-ink-muted);
+  --ui-text-dimmed: var(--color-ink-soft);
+  --ui-text-inverted: var(--color-canvas);
+  --ui-border: var(--color-line);
+  --ui-border-muted: var(--color-line);
+  --ui-border-accented: var(--color-line-strong);
+  --ui-primary: var(--color-sage);
+  color-scheme: dark;
+}
+
+/* In the base layer so a utility such as font-sans can still override a heading. */
+@layer base {
+  h1,
+  h2 {
+    font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+    font-weight: 600;
+    font-synthesis: none;
+    letter-spacing: -0.01em;
+  }
+}
+
+@utility font-display {
+  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+  font-weight: 600;
+  font-synthesis: none;
+  letter-spacing: -0.01em;
 }
 
 @theme static {
@@ -32,27 +75,53 @@
   --color-cream-800: #8f6431;
   --color-cream-900: #75532b;
   --color-cream-950: #432c15;
+
+  /* Dark theme roles. Contrast against canvas and panel is checked in the slice notes. */
+  --color-canvas: #121d16;
+  --color-panel: #1b2a21;
+  --color-panel-raised: #243629;
+  --color-mint-panel: #20372a;
+  --color-line: #33493b;
+  --color-line-strong: #728c7a; /* form borders at least 3:1 on panels */
+  --color-ink: #f2ede0;
+  --color-ink-muted: #c4cdbf;
+  --color-ink-soft: #a7b4a3;
+  --color-sage: #b5d3a3;
+  --color-sage-strong: #cfe5c1;
+  --color-studio: #fbf8f0; /* every bottle at least 3:1 against it (lowest 3.04) */
+  --color-warn-panel: #302b17;
+  --color-danger: #f4a59b;
+  --color-danger-panel: #3a201c;
 }
 
-/* Visual style (spec 6.4): a soft mint-to-cream page and white cards with large corners and a
-   soft shadow. Plain CSS gradients and shadows, so the look costs no images or downloads. */
+/* Visual style (spec 6.4): dark forest green, panels with a hairline border and a soft shadow.
+   Plain CSS gradients and shadows; the only images are the small flavour bottles. */
 @utility gc-page {
-  background-color: var(--color-cream-100);
-  background-image: linear-gradient(170deg, #e6f4e9 0%, #f3f8ec 30%, var(--color-cream-100) 65%, var(--color-cream-50) 100%);
+  background-color: var(--color-canvas);
+  background-image: radial-gradient(120% 60% at 50% 0%, #1f3527 0%, var(--color-canvas) 60%);
 }
 
 @utility gc-card {
-  background-color: #fff;
+  background-color: var(--color-panel);
+  border: 1px solid var(--color-line);
   border-radius: 1.25rem;
-  box-shadow:
-    0 1px 2px rgb(16 40 24 / 0.05),
-    0 10px 28px -12px rgb(16 40 24 / 0.18);
+  box-shadow: 0 12px 32px -16px rgb(0 0 0 / 0.55);
+}
+
+/* The hero panels on C1, C6 and O1: a little lighter at the top, like the template's glass card. */
+@utility gc-hero {
+  background-color: var(--color-panel);
+  background-image: linear-gradient(160deg, #2a4433 0%, var(--color-panel) 70%);
+  border: 1px solid var(--color-line);
+  border-radius: 1.5rem;
+  box-shadow: 0 16px 40px -18px rgb(0 0 0 / 0.6);
 }
 
 /* The bar that holds the bottom-anchored primary action. */
 @utility gc-bottom-bar {
-  background-color: rgb(255 255 255 / 0.96);
+  background-color: rgb(27 42 33 / 0.97);
+  border-top: 1px solid var(--color-line);
   border-top-left-radius: 1.5rem;
   border-top-right-radius: 1.5rem;
-  box-shadow: 0 -10px 30px -14px rgb(16 40 24 / 0.25);
+  box-shadow: 0 -12px 30px -14px rgb(0 0 0 / 0.6);
 }

@@ -71,10 +71,10 @@ function stop() {
 
 <template>
   <section v-if="me" class="space-y-3 gc-card p-4" aria-labelledby="reminder-heading">
-    <h2 id="reminder-heading" class="font-bold text-stone-900">{{ props.compact ? 'Reminder settings' : 'Reminders' }}</h2>
+    <h2 id="reminder-heading" class="text-ink">{{ props.compact ? 'Reminder settings' : 'Reminders' }}</h2>
 
     <template v-if="state === 'opted_in'">
-      <p class="text-stone-800">
+      <p class="text-ink">
         Reminders on: {{ channelLabel(me.reminders.channel) }}, {{ frequencyLabel(me.reminders.frequency) }}.
         GoodCane sends them by hand.
       </p>
@@ -89,12 +89,12 @@ function stop() {
       />
     </template>
 
-    <p v-else-if="state === 'stopped'" class="text-stone-800">
+    <p v-else-if="state === 'stopped'" class="text-ink">
       Reminders are off. You can turn them back on in Manage (coming soon).
     </p>
 
     <template v-else-if="canChoose">
-      <p v-if="state === 'declined'" class="text-stone-800">Reminders are off (you chose None).</p>
+      <p v-if="state === 'declined'" class="text-ink">Reminders are off (you chose None).</p>
 
       <UButton
         v-if="!open"
@@ -107,15 +107,15 @@ function stop() {
 
       <form v-else class="space-y-3" @submit.prevent="save">
         <fieldset>
-          <legend class="font-semibold text-stone-900">
+          <legend class="font-semibold text-ink">
             {{ state === 'declined' ? 'Turn reminders on by' : 'Remind me before the next drop by' }}
           </legend>
           <div class="mt-1 grid gap-2" :class="channelOptions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'">
             <label
               v-for="option in channelOptions"
               :key="option.value"
-              class="flex min-h-12 cursor-pointer items-center justify-center rounded-2xl border-2 px-2 font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-cane-700"
-              :class="channel === option.value ? 'border-cane-700 bg-cane-700 text-white' : 'border-stone-400 bg-white text-stone-900'"
+              class="flex min-h-12 cursor-pointer items-center justify-center rounded-2xl border-2 px-2 font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-sage"
+              :class="channel === option.value ? 'border-sage bg-sage text-canvas' : 'border-line-strong bg-panel-raised text-ink'"
             >
               <input v-model="channel" type="radio" :name="`channel-${props.source}`" :value="option.value" class="sr-only" />
               {{ option.label }}
@@ -124,16 +124,16 @@ function stop() {
         </fieldset>
 
         <fieldset v-if="needsFrequency">
-          <legend class="font-semibold text-stone-900">How often should we remind you?</legend>
+          <legend class="font-semibold text-ink">How often should we remind you?</legend>
           <div class="mt-1 grid gap-2">
             <label
               v-for="option in frequencyOptions"
               :key="option.value"
-              class="flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border-2 px-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-cane-700"
-              :class="frequency === option.value ? 'border-cane-700 bg-cane-50' : 'border-stone-300 bg-white'"
+              class="flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border-2 px-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-sage"
+              :class="frequency === option.value ? 'border-sage bg-mint-panel' : 'border-line bg-panel-raised'"
             >
-              <input v-model="frequency" type="radio" :name="`frequency-${props.source}`" :value="option.value" class="size-5 accent-cane-700" />
-              <span class="font-semibold text-stone-900">{{ option.label }}</span>
+              <input v-model="frequency" type="radio" :name="`frequency-${props.source}`" :value="option.value" class="size-5 accent-sage" />
+              <span class="font-semibold text-ink">{{ option.label }}</span>
             </label>
           </div>
         </fieldset>
@@ -142,7 +142,7 @@ function stop() {
       </form>
     </template>
 
-    <p v-if="message" role="status" class="text-sm font-semibold" :class="failed ? 'text-red-700' : 'text-cane-800'">
+    <p v-if="message" role="status" class="text-sm font-semibold" :class="failed ? 'text-danger' : 'text-sage'">
       {{ message }}
     </p>
   </section>

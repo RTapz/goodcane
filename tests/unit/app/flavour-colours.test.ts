@@ -15,6 +15,8 @@ function contrast(a: string, b: string): number {
   return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05)
 }
 
+const STUDIO = '#FBF8F0'
+
 describe('flavourColour', () => {
   it('gives every sample menu flavour its own colour', () => {
     const colours = flavours.map((f) => flavourColours[f.name])
@@ -22,12 +24,13 @@ describe('flavourColour', () => {
     expect(new Set(colours).size).toBe(flavours.length)
   })
 
-  it.each(Object.entries(flavourColours))('%s (%s) is at least 3:1 against the white card', (_name, colour) => {
-    expect(contrast(colour, '#FFFFFF')).toBeGreaterThanOrEqual(3)
+  // Bottles stand on the cream studio disc (--color-studio in main.css, spec 6.4).
+  it.each(Object.entries(flavourColours))('%s (%s) is at least 3:1 against the studio disc', (_name, colour) => {
+    expect(contrast(colour, STUDIO)).toBeGreaterThanOrEqual(3)
   })
 
   it('falls back to a neutral grey, also at least 3:1, for an unknown flavour', () => {
     expect(flavourColour('Mystery cane')).toBe('#78716C')
-    expect(contrast(flavourColour('Mystery cane'), '#FFFFFF')).toBeGreaterThanOrEqual(3)
+    expect(contrast(flavourColour('Mystery cane'), STUDIO)).toBeGreaterThanOrEqual(3)
   })
 })

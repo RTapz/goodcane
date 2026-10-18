@@ -27,9 +27,9 @@ async function addToHomeScreen() {
 </script>
 
 <template>
-  <section class="space-y-3 rounded-2xl border-2 border-cane-700 bg-white p-4" aria-labelledby="link-heading">
-    <h2 id="link-heading" class="text-lg font-bold text-stone-900">Your private link</h2>
-    <p class="text-stone-800">
+  <section class="space-y-3 rounded-2xl border-2 border-sage bg-panel-raised p-4" aria-labelledby="link-heading">
+    <h2 id="link-heading" class="text-lg text-ink">Your private link</h2>
+    <p class="text-ink">
       This link opens your orders on any phone. It works like a key, so keep it to yourself.
       <strong>It is shown only once.</strong>
     </p>
@@ -39,7 +39,7 @@ async function addToHomeScreen() {
       ref="linkInput"
       :value="props.privateLink"
       readonly
-      class="block min-h-12 w-full rounded-xl border border-stone-400 bg-cream-50 px-3 font-mono text-sm text-stone-900"
+      class="block min-h-12 w-full rounded-xl border border-line-strong bg-panel-raised px-3 font-mono text-sm text-ink"
       @focus="($event.target as HTMLInputElement).select()"
     />
     <div class="grid gap-2">
@@ -68,8 +68,8 @@ async function addToHomeScreen() {
         @click="addToHomeScreen"
       />
     </div>
-    <p v-if="copied" role="status" class="text-sm font-semibold text-cane-800">Link copied.</p>
-    <p v-if="showInstallHelp" role="status" class="rounded-2xl bg-cream-200 p-3 text-sm text-stone-900">
+    <p v-if="copied" role="status" class="text-sm font-semibold text-sage">Link copied.</p>
+    <p v-if="showInstallHelp" role="status" class="rounded-2xl bg-warn-panel p-3 text-sm text-ink">
       In your browser menu, choose <strong>Add to Home Screen</strong> (on iPhone: the Share button, then Add to Home Screen).
     </p>
   </section>

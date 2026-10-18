@@ -26,15 +26,15 @@ onBeforeUnmount(clearNotice)
     <StateError v-else-if="status === 'error'" @retry="refresh()" />
 
     <template v-else-if="data">
-      <p v-if="notice" role="status" class="rounded-2xl border border-amber-400 bg-white p-3 font-semibold text-stone-900">
+      <p v-if="notice" role="status" class="rounded-2xl border border-amber-400 bg-panel-raised p-3 font-semibold text-ink">
         {{ notice }}
       </p>
 
       <section v-if="me && canReorder" class="gc-card p-4" aria-label="Welcome back">
-        <p class="font-bold text-cane-900">Welcome back, {{ me.firstName }}. Same again?</p>
+        <p class="font-bold text-sage">Welcome back, {{ me.firstName }}. Same again?</p>
         <UButton to="/same-again" class="mt-2 min-h-11" label="Order my usual" />
       </section>
-      <p v-else-if="route.query.welcome" role="status" class="rounded-2xl bg-cane-50 p-3 font-semibold text-cane-900">
+      <p v-else-if="route.query.welcome" role="status" class="rounded-2xl bg-mint-panel p-3 font-semibold text-sage">
         Welcome{{ me?.firstName ? `, ${me.firstName}` : '' }}. Start an order for the next drop below.
       </p>
 
@@ -46,25 +46,30 @@ onBeforeUnmount(clearNotice)
         :description="drop ? `You can still reserve for ${formatDropDate(drop.dropAt)}.` : undefined"
       />
 
-      <section v-if="drop" aria-labelledby="drop-heading" class="space-y-1 rounded-3xl bg-gradient-to-br from-cane-100 via-cane-50 to-white p-5 shadow-[0_10px_28px_-12px_rgb(16_40_24/0.25)]">
-        <p class="text-sm font-semibold uppercase tracking-wide text-cane-700">This drop</p>
-        <h2 id="drop-heading" class="text-3xl font-extrabold text-stone-900">{{ formatDropDate(drop.dropAt) }}</h2>
+      <section v-if="drop" aria-labelledby="drop-heading" class="space-y-1 gc-hero p-5">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <p class="text-sm font-semibold uppercase tracking-wide text-sage">This drop</p>
+            <h2 id="drop-heading" class="text-3xl leading-tight text-ink">{{ formatDropDate(drop.dropAt) }}</h2>
+          </div>
+          <FlavourBottle name="Raw cane" size="md" eager class="-mt-1" />
+        </div>
         <ClientOnly>
           <CutOffCountdown :cut-off-at="drop.cutOffAt" :server-now="data.serverNow" @reached="refresh()" />
           <!-- Same text as the live countdown at server time, so nothing moves when it takes over. -->
           <template #fallback>
-            <p class="text-lg font-bold tabular-nums text-stone-900">{{ countdownAtServerTime }}</p>
+            <p class="text-lg font-bold tabular-nums text-ink">{{ countdownAtServerTime }}</p>
           </template>
         </ClientOnly>
-        <p class="text-stone-700">Cut-off: {{ formatCutOff(drop.cutOffAt) }}</p>
-        <p class="inline-flex rounded-full bg-white px-3 py-1 font-semibold text-cane-900 shadow-sm">
+        <p class="text-ink-muted">Cut-off: {{ formatCutOff(drop.cutOffAt) }}</p>
+        <p class="inline-flex rounded-full bg-panel-raised px-3 py-1 font-semibold text-sage shadow-sm">
           {{ drop.spacesLeft > 0 ? `${plural(drop.spacesLeft, 'space', 'spaces')} left` : 'This drop is full' }}
         </p>
       </section>
 
       <section v-else class="gc-card p-4">
-        <h2 class="text-xl font-bold text-stone-900">No drop is scheduled yet</h2>
-        <p class="mt-1 text-stone-700">Check back soon for the next one.</p>
+        <h2 class="text-xl text-ink">No drop is scheduled yet</h2>
+        <p class="mt-1 text-ink-muted">Check back soon for the next one.</p>
       </section>
 
       <TastePicker v-if="drop" />

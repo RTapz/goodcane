@@ -2,7 +2,7 @@
 <template>
   <NuxtLink
     to="/"
-    class="inline-flex min-h-11 items-center text-2xl font-extrabold tracking-tight text-cane-700"
+    class="font-display inline-flex min-h-11 items-center text-2xl text-ink"
   >
     GoodCane Drops
   </NuxtLink>

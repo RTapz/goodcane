@@ -47,36 +47,36 @@ async function makeNewLink() {
     <StateLoading v-if="status === 'pending' && !order" />
 
     <div v-else-if="error?.statusCode === 404" class="gc-card p-4">
-      <h1 class="text-xl font-bold text-stone-900">We can't find this order on this device</h1>
-      <p class="mt-1 text-stone-700">Open your private link on this phone to see your orders.</p>
+      <h1 class="text-xl text-ink">We can't find this order on this device</h1>
+      <p class="mt-1 text-ink-muted">Open your private link on this phone to see your orders.</p>
       <UButton to="/" class="mt-3 min-h-11" label="Back to this drop" />
     </div>
 
     <StateError v-else-if="error" message="We couldn't load your order." @retry="refresh()" />
 
     <template v-else-if="order && paid">
-      <header class="rounded-3xl bg-gradient-to-br from-cane-700 to-cane-800 p-5 text-white shadow-[0_10px_28px_-12px_rgb(16_40_24/0.35)]">
-        <h1 class="text-2xl font-extrabold">Paid and confirmed</h1>
+      <header class="gc-hero p-5 text-ink">
+        <h1 class="text-2xl">Paid and confirmed</h1>
         <p class="mt-1">Your bottles are reserved for {{ formatDropDate(order.drop.dropAt) }}.</p>
       </header>
 
       <section class="gc-card p-4" aria-labelledby="handover-heading">
-        <h2 id="handover-heading" class="font-bold text-stone-900">{{ order.fulfilment === 'delivery' ? 'Delivery' : 'Pickup' }}</h2>
-        <p v-if="order.fulfilment === 'delivery'" class="mt-1 text-stone-800">{{ order.address }}, {{ order.area }}</p>
-        <p v-else class="mt-1 text-stone-800">Pickup point, Accra, on {{ formatDropDate(order.drop.dropAt) }}</p>
-        <p class="mt-1 text-stone-800">{{ order.firstName }}, {{ order.phoneMasked }}</p>
+        <h2 id="handover-heading" class="text-ink">{{ order.fulfilment === 'delivery' ? 'Delivery' : 'Pickup' }}</h2>
+        <p v-if="order.fulfilment === 'delivery'" class="mt-1 text-ink">{{ order.address }}, {{ order.area }}</p>
+        <p v-else class="mt-1 text-ink">Pickup point, Accra, on {{ formatDropDate(order.drop.dropAt) }}</p>
+        <p class="mt-1 text-ink">{{ order.firstName }}, {{ order.phoneMasked }}</p>
       </section>
 
       <OrderSummaryCard :order="order" />
 
       <PrivateLinkCard v-if="link" :private-link="link.privateLink" :whatsapp-url="link.whatsappUrl" />
       <section v-else class="space-y-2 gc-card p-4" aria-labelledby="link-again-heading">
-        <h2 id="link-again-heading" class="font-bold text-stone-900">Your private link</h2>
-        <p class="text-stone-700">
+        <h2 id="link-again-heading" class="text-ink">Your private link</h2>
+        <p class="text-ink-muted">
           Your private link was shown once, when you paid. Lost it? Make a new one. Your old link will stop working.
         </p>
         <UButton class="min-h-11" :loading="makingLink" :disabled="makingLink" label="Make a new link" @click="makeNewLink" />
-        <p v-if="linkError" role="alert" class="text-sm font-semibold text-red-700">{{ linkError }}</p>
+        <p v-if="linkError" role="alert" class="text-sm font-semibold text-danger">{{ linkError }}</p>
       </section>
 
       <!-- BR-R1: opt-in after payment success, never in checkout. Loaded lazily, below the fold. -->

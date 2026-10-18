@@ -16,13 +16,13 @@ const biasText = computed(() => {
 
 <template>
   <section aria-labelledby="pilot-metrics" class="gc-card p-4">
-    <h2 id="pilot-metrics" class="text-lg font-bold">Pilot metrics</h2>
+    <h2 id="pilot-metrics" class="text-lg">Pilot metrics</h2>
     <dl class="mt-3 space-y-3">
       <div>
         <dt class="font-semibold">Repeat-order rate</dt>
         <dd>
           <strong class="text-xl">{{ pct(m.repeatOrders.rate) }}</strong>
-          <span class="block text-sm text-stone-700">
+          <span class="block text-sm text-ink-muted">
             {{ m.repeatOrders.repeated }} of {{ m.repeatOrders.eligible }} customers who could order again did
           </span>
         </dd>
@@ -41,7 +41,7 @@ const biasText = computed(() => {
         <dt class="font-semibold">Cancellations</dt>
         <dd>
           <strong class="text-xl">{{ pct(m.cancellations.rate) }}</strong>
-          <span class="block text-sm text-stone-700">
+          <span class="block text-sm text-ink-muted">
             {{ m.cancellations.customerCancelled }} of {{ m.cancellations.paidOrders }} paid orders cancelled by the customer;
             {{ m.cancellations.ownerCancelled }} cancelled by you.
             Expired unpaid requests: {{ pct(m.cancellations.expiryRate) }} ({{ m.cancellations.expired }} of {{ m.cancellations.ordersPlaced }}).
@@ -53,17 +53,17 @@ const biasText = computed(() => {
         <dd>
           <template v-if="m.accuracy.scoredDrops > 0">
             <strong class="text-xl">MAPE {{ pct(m.accuracy.mape) }}</strong>
-            <span class="block text-sm text-stone-700">
+            <span class="block text-sm text-ink-muted">
               Naive benchmark (last drop's demand): {{ pct(m.accuracy.naiveMape) }}.
               WAPE {{ pct(m.accuracy.wape) }}, bias {{ biasText }}.
               From {{ plural(m.accuracy.scoredDrops, 'scored drop', 'scored drops') }}.
             </span>
           </template>
-          <span v-else class="text-stone-700">No scored drops yet: a drop is scored once it closes with a pace snapshot.</span>
+          <span v-else class="text-ink-muted">No scored drops yet: a drop is scored once it closes with a pace snapshot.</span>
         </dd>
       </div>
     </dl>
-    <p class="mt-3 rounded-xl bg-cream-200 p-3 text-sm text-stone-900">
+    <p class="mt-3 rounded-xl bg-warn-panel p-3 text-sm text-ink">
       Honesty note: this forecast learns from seeded data, so it shows the method works, not real accuracy.
     </p>
   </section>

@@ -75,7 +75,7 @@ const weightsText = computed(() => (demand.value?.unitWeights ?? []).map((w) => 
 <template>
   <div>
     <OwnerNav />
-    <h1 class="text-2xl font-bold">This drop</h1>
+    <h1 class="text-2xl">This drop</h1>
 
     <StateLoading v-if="loading" class="mt-4" />
     <StateError v-else-if="failed" class="mt-4" message="We couldn't load the demand view." @retry="retry" />
@@ -89,41 +89,39 @@ const weightsText = computed(() => (demand.value?.unitWeights ?? []).map((w) => 
         <select
           id="drop-picker"
           v-model="selected"
-          class="mt-1 min-h-11 w-full rounded-xl border border-stone-400 bg-white px-3 text-stone-900"
+          class="mt-1 min-h-11 w-full rounded-xl border border-line-strong bg-panel-raised px-3 text-ink"
         >
           <option v-for="d in dropList.drops" :key="d.id" :value="d.id">
-            {{ formatDropDate(d.dropAt) }} ({{ d.closed ? 'closed' : 'open' }}){{ d.isSample ? ', Sample' : '' }}
+            {{ formatDropDate(d.dropAt) }} ({{ d.closed ? 'closed' : 'open' }})
           </option>
         </select>
       </div>
 
       <!-- A finished drop: what happened, not what to make. -->
-      <section v-if="demand.drop.closed && demand.actuals" class="mt-4 rounded-3xl bg-gradient-to-br from-cane-700 to-cane-800 p-5 text-white" aria-labelledby="headline">
-        <h2 id="headline" class="text-sm font-semibold uppercase tracking-wide text-cane-100">Final demand</h2>
-        <p class="text-3xl font-bold">{{ demand.actuals.demand }} units</p>
-        <p class="mt-1 text-cane-100">{{ demand.units.paid }} paid + {{ demand.units.turnedAway }} turned away</p>
-        <p v-if="demand.drop.isSample" class="mt-2 inline-block rounded-full bg-white px-2.5 text-sm font-semibold text-cane-900">Sample data</p>
+      <section v-if="demand.drop.closed && demand.actuals" class="mt-4 gc-hero p-5 text-ink" aria-labelledby="headline">
+        <h2 id="headline" class="font-sans text-sm font-semibold uppercase tracking-wide text-ink-muted">Final demand</h2>
+        <p class="font-display text-4xl">{{ demand.actuals.demand }} units</p>
+        <p class="mt-1 text-ink-muted">{{ demand.units.paid }} paid + {{ demand.units.turnedAway }} turned away</p>
       </section>
 
       <!-- Headline: suggested production (BR-FC9). The owner always decides. -->
-      <section v-else class="mt-4 rounded-3xl bg-gradient-to-br from-cane-700 to-cane-800 p-5 text-white" aria-labelledby="headline">
-        <h2 id="headline" class="text-sm font-semibold uppercase tracking-wide text-cane-100">Suggested production</h2>
-        <p v-if="demand.suggested !== null" class="text-3xl font-bold">Make about {{ demand.suggested }} units</p>
+      <section v-else class="mt-4 gc-hero p-5 text-ink" aria-labelledby="headline">
+        <h2 id="headline" class="font-sans text-sm font-semibold uppercase tracking-wide text-ink-muted">Suggested production</h2>
+        <p v-if="demand.suggested !== null" class="font-display text-4xl">Make about {{ demand.suggested }} units</p>
         <p v-else class="text-xl font-bold">Not enough history to suggest a number yet</p>
-        <p v-if="demand.suggested !== null" class="mt-1 text-cane-100">
+        <p v-if="demand.suggested !== null" class="mt-1 text-ink-muted">
           {{ demand.forecast.projected }} projected pre-orders + {{ demand.unplannedBuffer.units }} for walk-ins. You decide.
         </p>
-        <p v-if="demand.drop.isSample" class="mt-2 inline-block rounded-full bg-white px-2.5 text-sm font-semibold text-cane-900">Sample data</p>
       </section>
 
       <div class="mt-4 space-y-1">
         <CutOffCountdown v-if="!demand.drop.closed" :cut-off-at="demand.drop.cutOffAt" :server-now="demand.serverNow" />
         <p v-else class="font-semibold">Orders closed {{ formatCutOff(demand.drop.cutOffAt) }}</p>
-        <p class="text-stone-700">Drop day: {{ formatDropDate(demand.drop.dropAt) }}</p>
+        <p class="text-ink-muted">Drop day: {{ formatDropDate(demand.drop.dropAt) }}</p>
       </div>
 
       <section class="mt-4 gc-card p-4" aria-labelledby="tiers">
-        <h2 id="tiers" class="text-lg font-bold">Booked so far</h2>
+        <h2 id="tiers" class="text-lg">Booked so far</h2>
         <OwnerDemandTiers
           class="mt-2"
           :paid="demand.units.paid"
@@ -132,30 +130,30 @@ const weightsText = computed(() => (demand.value?.unitWeights ?? []).map((w) => 
           :capacity="demand.drop.capacity"
           :spaces-left="demand.units.spacesLeft"
         />
-        <p class="mt-2 text-sm text-stone-700">
+        <p class="mt-2 text-sm text-ink-muted">
           Likely uses a {{ formatPercent(demand.units.conversion.rate, 0) }} request-to-paid rate{{ demand.units.conversion.fallback ? ' (default value: fewer than 3 finished drops)' : ' from finished drops' }}.
         </p>
-        <p class="mt-2" :class="demand.units.turnedAway > 0 ? 'font-semibold text-red-800' : 'text-stone-900'">
+        <p class="mt-2" :class="demand.units.turnedAway > 0 ? 'font-semibold text-danger' : 'text-ink'">
           Turned away: {{ demand.units.turnedAway }} units{{ demand.units.turnedAway > 0 ? ' (wanted but the drop was full)' : '' }}
         </p>
       </section>
 
       <section v-if="!demand.drop.closed" class="mt-4 gc-card p-4" aria-labelledby="projection">
-        <h2 id="projection" class="text-lg font-bold">Projected pre-orders</h2>
-        <p class="text-sm text-stone-700">{{ methodLabel[demand.forecast.method] }}</p>
+        <h2 id="projection" class="text-lg">Projected pre-orders</h2>
+        <p class="text-sm text-ink-muted">{{ methodLabel[demand.forecast.method] }}</p>
         <p v-if="demand.forecast.range" class="mt-1 text-2xl font-bold">
           about {{ demand.forecast.range.low }} to {{ demand.forecast.range.high }} units
         </p>
-        <p v-if="demand.forecast.range" class="text-sm text-stone-700">
+        <p v-if="demand.forecast.range" class="text-sm text-ink-muted">
           {{ demand.forecast.range.fallback ? 'Range is a default plus or minus 10%: no scored drops yet.' : `Range from the recent error of ${plural(demand.forecast.errorBandDrops, 'scored drop', 'scored drops')}.` }}
         </p>
         <p v-if="demand.forecast.closedDrops === 0" class="mt-1">No finished drops yet, so there is nothing to project from.</p>
         <dl class="mt-3 grid grid-cols-2 gap-2">
-          <div class="rounded-xl bg-cane-50 p-3">
+          <div class="rounded-xl bg-mint-panel p-3">
             <dt class="text-sm font-semibold">Baseline</dt>
             <dd>{{ demand.forecast.baseline !== null ? `${demand.forecast.baseline} units` : 'no history yet' }}</dd>
           </div>
-          <div class="rounded-xl bg-cane-50 p-3">
+          <div class="rounded-xl bg-mint-panel p-3">
             <dt class="text-sm font-semibold">Pace</dt>
             <dd>{{ paceText }}</dd>
           </div>
@@ -171,11 +169,11 @@ const weightsText = computed(() => (demand.value?.unitWeights ?? []).map((w) => 
           :saving="savingBuffer"
           @update:model-value="setBuffer"
         />
-        <p v-if="bufferError" role="alert" class="mt-2 font-semibold text-red-700">{{ bufferError }}</p>
+        <p v-if="bufferError" role="alert" class="mt-2 font-semibold text-danger">{{ bufferError }}</p>
       </section>
 
       <section class="mt-4 gc-card p-4" aria-labelledby="planned-share">
-        <h2 id="planned-share" class="text-lg font-bold">Planned share</h2>
+        <h2 id="planned-share" class="text-lg">Planned share</h2>
         <p v-if="demand.plannedShare?.kind === 'estimate'">
           {{ demand.plannedShare.preordered }} of {{ demand.plannedShare.expected }} expected units pre-ordered (estimate)
         </p>
@@ -183,11 +181,11 @@ const weightsText = computed(() => (demand.value?.unitWeights ?? []).map((w) => 
           <strong>{{ formatPercent(demand.plannedShare.share, 0) }}</strong> pre-ordered:
           {{ demand.plannedShare.preordered }} pre-ordered, {{ demand.plannedShare.unplanned }} sold without a pre-order
         </p>
-        <p v-else class="text-stone-700">Shown once there is a suggestion or the batch is closed.</p>
+        <p v-else class="text-ink-muted">Shown once there is a suggestion or the batch is closed.</p>
       </section>
 
       <section v-if="demand.actuals" class="mt-4 gc-card p-4" aria-labelledby="actuals">
-        <h2 id="actuals" class="text-lg font-bold">How it went</h2>
+        <h2 id="actuals" class="text-lg">How it went</h2>
         <ul class="mt-1 space-y-1">
           <li>Demand: <strong>{{ demand.actuals.demand }} units</strong> ({{ demand.units.paid }} paid + {{ demand.units.turnedAway }} turned away)</li>
           <li v-if="demand.actuals.snapshotPace !== null">
@@ -195,24 +193,24 @@ const weightsText = computed(() => (demand.value?.unitWeights ?? []).map((w) => 
           </li>
           <li v-if="demand.actuals.snapshotBaseline !== null">Baseline at the checkpoint: {{ demand.actuals.snapshotBaseline }} units</li>
           <li v-if="demand.actuals.made !== null">Made {{ demand.actuals.made }}, sold without pre-order {{ demand.actuals.unplanned }}, wasted {{ demand.actuals.wasted }}</li>
-          <li v-else class="text-stone-700">Batch not closed yet.</li>
+          <li v-else class="text-ink-muted">Batch not closed yet.</li>
         </ul>
       </section>
 
       <section class="mt-4 gc-card p-4" aria-labelledby="by-flavour">
-        <h2 id="by-flavour" class="text-lg font-bold">Booked so far, by flavour</h2>
-        <ul v-if="demand.byFlavour.length" class="mt-2 divide-y divide-stone-200">
+        <h2 id="by-flavour" class="text-lg">Booked so far, by flavour</h2>
+        <ul v-if="demand.byFlavour.length" class="mt-2 divide-y divide-line">
           <li v-for="line in demand.byFlavour" :key="line.flavour" class="flex items-center gap-2 py-2">
-            <span class="inline-block size-3 shrink-0 rounded-full" :style="{ background: flavourColour(line.flavour) }" aria-hidden="true" />
+            <FlavourBottle :name="line.flavour" size="xs" />
             <span class="flex-1">{{ line.flavour }}</span>
             <span class="text-right">Paid <strong>{{ line.paid }}</strong>, likely {{ line.likely }}</span>
           </li>
         </ul>
-        <p v-else class="mt-1 text-stone-700">Nothing booked for this drop yet.</p>
-        <p class="mt-2 text-sm text-stone-700">The forecast is for the total, not per flavour. Lapsed requests are left out.</p>
+        <p v-else class="mt-1 text-ink-muted">Nothing booked for this drop yet.</p>
+        <p class="mt-2 text-sm text-ink-muted">The forecast is for the total, not per flavour. Lapsed requests are left out.</p>
       </section>
 
-      <p class="mt-4 text-sm text-stone-700">
+      <p class="mt-4 text-sm text-ink-muted">
         1 unit = one 330ml bottle; larger sizes count as more{{ weightsText ? ` (${weightsText})` : '' }}.
       </p>
 

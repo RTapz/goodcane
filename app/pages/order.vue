@@ -76,38 +76,38 @@ const atLimit = computed(() => overBy.value === 0 && units.value > 0 && availabl
 
     <template v-else-if="data">
       <div v-if="!activeDrop" class="gc-card p-4">
-        <h1 class="text-xl font-bold text-stone-900">No drop is scheduled yet</h1>
-        <p class="mt-1 text-stone-700">Check back soon for the next one.</p>
+        <h1 class="text-xl text-ink">No drop is scheduled yet</h1>
+        <p class="mt-1 text-ink-muted">Check back soon for the next one.</p>
         <UButton to="/" class="mt-3 min-h-11" color="neutral" variant="outline" label="Back to this drop" />
       </div>
 
       <template v-else>
         <header>
-          <h1 class="text-2xl font-extrabold text-stone-900">Build your order</h1>
-          <p class="text-stone-700">For {{ formatDropDate(activeDrop.dropAt) }}. {{ plural(spaces, 'space', 'spaces') }} left.</p>
-          <p v-if="pickedTaste" class="mt-1 text-sm text-stone-700">
+          <h1 class="text-2xl text-ink">Build your order</h1>
+          <p class="text-ink-muted">For {{ formatDropDate(activeDrop.dropAt) }}. {{ plural(spaces, 'space', 'spaces') }} left.</p>
+          <p v-if="pickedTaste" class="mt-1 text-sm text-ink-muted">
             {{ pickedTaste[0]!.toUpperCase() + pickedTaste.slice(1) }} flavours first, as you picked.
           </p>
         </header>
 
-        <div v-if="notice" role="alert" class="flex items-start justify-between gap-2 rounded-2xl border border-amber-400 bg-white p-3">
-          <p class="font-semibold text-stone-900">{{ notice }}</p>
+        <div v-if="notice" role="alert" class="flex items-start justify-between gap-2 rounded-2xl border border-amber-400 bg-panel-raised p-3">
+          <p class="font-semibold text-ink">{{ notice }}</p>
           <UButton color="neutral" variant="ghost" class="min-h-11 shrink-0" label="Dismiss" @click="clearNotice" />
         </div>
 
-        <p v-if="overBy > 0" role="status" class="rounded-2xl bg-cream-200 p-3 text-sm text-stone-900">
+        <p v-if="overBy > 0" role="status" class="rounded-2xl bg-warn-panel p-3 text-sm text-ink">
           Your order has {{ plural(units, 'bottle', 'bottles') }}, but only {{ plural(spaces, 'space is', 'spaces are') }} left.
           Remove {{ plural(overBy, 'bottle', 'bottles') }} to continue.
         </p>
-        <p v-else-if="atLimit" role="status" class="rounded-2xl bg-cream-200 p-3 text-sm text-stone-900">
+        <p v-else-if="atLimit" role="status" class="rounded-2xl bg-warn-panel p-3 text-sm text-ink">
           Your order fills the last spaces in this drop, so you can't add more.
         </p>
 
         <!-- Never dead-end: a full drop offers the next one, and only moves if the customer taps it. -->
         <div v-if="available.length === 0" class="gc-card p-4">
-          <h2 class="text-xl font-bold text-stone-900">This drop is full</h2>
+          <h2 class="text-xl text-ink">This drop is full</h2>
           <template v-if="data.nextDrop && activeDrop.id !== data.nextDrop.id">
-            <p class="mt-1 text-stone-700">
+            <p class="mt-1 text-ink-muted">
               The next drop is {{ formatDropDate(data.nextDrop.dropAt) }}, with {{ plural(data.nextDrop.spacesLeft, 'space', 'spaces') }} left.
             </p>
             <UButton
@@ -116,7 +116,7 @@ const atLimit = computed(() => overBy.value === 0 && units.value > 0 && availabl
               @click="switchDrop(data.nextDrop.id)"
             />
           </template>
-          <p v-else class="mt-1 text-stone-700">No more drops are scheduled yet. Check back soon.</p>
+          <p v-else class="mt-1 text-ink-muted">No more drops are scheduled yet. Check back soon.</p>
         </div>
 
         <ul v-else class="grid grid-cols-2 gap-3">

@@ -14,12 +14,12 @@ const statusText: Record<OwnerOrderView['status'], string> = {
   expired: 'Expired'
 }
 const statusClass: Record<OwnerOrderView['status'], string> = {
-  requested: 'bg-amber-100 text-amber-950',
-  lapsed: 'bg-stone-200 text-stone-900',
-  paid_confirmed: 'bg-cane-100 text-cane-950',
-  fulfilled: 'bg-cane-700 text-white',
-  cancelled: 'bg-red-100 text-red-950',
-  expired: 'bg-stone-200 text-stone-900'
+  requested: 'bg-warn-panel text-amber-200',
+  lapsed: 'bg-panel-raised text-ink-muted',
+  paid_confirmed: 'bg-mint-panel text-sage',
+  fulfilled: 'bg-sage text-canvas',
+  cancelled: 'bg-danger-panel text-danger',
+  expired: 'bg-panel-raised text-ink-muted'
 }
 const sizeLabel: Record<string, string> = { '330ml': '330ml', '500ml': '500ml', '2l': '2L', '4l': '4L' }
 </script>
@@ -29,7 +29,7 @@ const sizeLabel: Record<string, string> = { '330ml': '330ml', '500ml': '500ml', 
     <div class="flex flex-wrap items-start justify-between gap-2">
       <div class="min-w-0">
         <p class="font-semibold">{{ props.order.firstName ?? 'Removed customer' }}</p>
-        <p class="text-sm text-stone-700">{{ props.order.maskedPhone ?? 'No phone kept' }}</p>
+        <p class="text-sm text-ink-muted">{{ props.order.maskedPhone ?? 'No phone kept' }}</p>
       </div>
       <span class="rounded-full px-2.5 py-0.5 text-sm font-semibold" :class="statusClass[props.order.status]">
         {{ statusText[props.order.status] }}
@@ -40,14 +40,14 @@ const sizeLabel: Record<string, string> = { '330ml': '330ml', '500ml': '500ml', 
         {{ line.quantity }} x {{ line.name }}, {{ sizeLabel[line.size] ?? line.size }}
       </li>
     </ul>
-    <p class="mt-1 text-sm text-stone-700">
+    <p class="mt-1 text-sm text-ink-muted">
       {{ formatShortDate(props.order.dropAt) }} drop, {{ props.order.fulfilment === 'delivery' ? `delivery to ${props.order.area}` : 'pickup' }},
       {{ formatPesewas(props.order.totalPesewas) }}
     </p>
-    <p v-if="props.order.refundDue" class="mt-2 rounded-xl bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-900">
+    <p v-if="props.order.refundDue" class="mt-2 rounded-xl bg-danger-panel px-3 py-1.5 text-sm font-semibold text-danger">
       Refund due
     </p>
-    <p v-if="props.order.unconfirmedPaymentRefundDue" class="mt-2 rounded-xl bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-900">
+    <p v-if="props.order.unconfirmedPaymentRefundDue" class="mt-2 rounded-xl bg-danger-panel px-3 py-1.5 text-sm font-semibold text-danger">
       Payment received, not confirmed, refund due
     </p>
     <div v-if="props.order.status === 'paid_confirmed' || props.order.status === 'requested'" class="mt-3 flex flex-wrap gap-2">
