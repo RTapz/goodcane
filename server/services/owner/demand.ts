@@ -41,14 +41,17 @@ export interface FlavourLine {
   likely: number
 }
 
-/** Pace for the drop now: needs a pace table, which needs closed drops that did not sell out. */
-function paceNow(history: DropFact[], paidUnits: number, daysBeforeCutOff: number): Maybe<number, string> {
+/**
+ * Pace for the drop now: needs a pace table, which needs closed drops that did not sell out.
+ * Projects from demand so far (paid plus turned away, BR-FC4), so it is scored like for like.
+ */
+function paceNow(history: DropFact[], demandSoFar: number, daysBeforeCutOff: number): Maybe<number, string> {
   const forPace = history.filter((f) => f.paidUnits > 0 && !hitCapacity(f.paidUnits, f.drop.capacity))
   if (forPace.length === 0) return unavailable('no_history')
   const table = learnPaceTable(forPace.map((f) => ({ cutOffAt: f.drop.cutOffAt, paid: f.finalPaid })))
   const share = paceShareAt(table, daysBeforeCutOff)
   if (!share.ok) return share
-  return paceProjection(paidUnits, share.value)
+  return paceProjection(demandSoFar, share.value)
 }
 
 async function flavourLines(db: Db, fact: DropFact, rate: number): Promise<FlavourLine[]> {
@@ -97,7 +100,7 @@ export async function dropDemand(db: Db, dropId: string, ctx: { now: Date; demoM
   const daysBeforeCutOff = (drop.cutOffAt.getTime() - now.getTime()) / MS_PER_DAY
 
   const baseline = weightedBaseline(history.map((f) => f.demandUnits))
-  const pace = paceNow(history, fact.paidUnits, daysBeforeCutOff)
+  const pace = paceNow(history, fact.demandUnits, daysBeforeCutOff)
   const headline = chooseHeadline({
     closedDrops: history.length,
     baseline,

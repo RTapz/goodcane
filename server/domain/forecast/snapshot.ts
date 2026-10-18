@@ -2,7 +2,8 @@
 //
 // To score a forecast fairly later (BR-FC11) it must only use what was known at that moment.
 // So this function takes everything and throws away what came later itself:
-//   - payments for this drop count only if paid at or before the checkpoint,
+//   - payments for this drop count only if paid at or before the checkpoint and not cancelled by then,
+//   - turned-away rows count only if recorded by then, deduped against who had paid by then (BR-F2),
 //   - history only includes drops whose cut-off was before the checkpoint.
 // That means it gives the same answer whether it runs on time, a day late, or in the seed.
 import { weightedBaseline } from './baseline'
@@ -10,6 +11,7 @@ import { hitCapacity } from './capacity'
 import { demandUnits } from './demand'
 import { learnPaceTable, paceShareAt, type PaidUnits } from './pace'
 import { MIN_DROPS_FOR_PACE, paceProjection } from './projection'
+import { turnedAwayUnits, type TurnedAwayRow } from './turned-away'
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
@@ -24,7 +26,13 @@ export interface HistoryDrop {
 
 /** A paid order on the drop being forecast, and when it was cancelled if it was. */
 export interface PaidOrder extends PaidUnits {
+  customerId: string | null
   cancelledAt: Date | null
+}
+
+/** A turned-away row on the drop being forecast, with when it was recorded. */
+export interface TurnedAwayAt extends TurnedAwayRow {
+  createdAt: Date
 }
 
 export interface SnapshotInput {
@@ -32,6 +40,8 @@ export interface SnapshotInput {
   checkpointDays: number
   /** Paid orders on the drop being forecast. Later payments and cancellations are ignored here. */
   paid: PaidOrder[]
+  /** Turned-away rows on the drop being forecast. Later ones are ignored here. */
+  turnedAway: TurnedAwayAt[]
   /** Other drops. Ones that closed after the checkpoint are ignored here. */
   history: HistoryDrop[]
 }
@@ -71,8 +81,13 @@ export function snapshotAtCheckpoint(input: SnapshotInput): Snapshot {
   const forPace = known.filter((drop) => sumUnits(drop.paid) > 0 && !hitCapacity(sumUnits(drop.paid), drop.capacity))
   if (known.length >= MIN_DROPS_FOR_PACE && forPace.length > 0) {
     const share = paceShareAt(learnPaceTable(forPace), input.checkpointDays)
-    const paidByCheckpoint = sumUnits(input.paid.filter((p) => paidAtCheckpoint(p, checkpointAt)))
-    const projection = share.ok ? paceProjection(paidByCheckpoint, share.value) : null
+    // Demand so far (BR-FC4), so the forecast and the actual it is scored against are both
+    // demand units: paid by the checkpoint plus turned away by then, without counting anyone twice.
+    const paidByCheckpoint = input.paid.filter((p) => paidAtCheckpoint(p, checkpointAt))
+    const paidCustomers = new Set(paidByCheckpoint.flatMap((p) => (p.customerId ? [p.customerId] : [])))
+    const turnedAwayByCheckpoint = input.turnedAway.filter((t) => t.createdAt.getTime() <= checkpointAt.getTime())
+    const demandSoFar = sumUnits(paidByCheckpoint) + turnedAwayUnits(turnedAwayByCheckpoint, paidCustomers)
+    const projection = share.ok ? paceProjection(demandSoFar, share.value) : null
     pace = projection?.ok ? Math.round(projection.value) : null
   }
 

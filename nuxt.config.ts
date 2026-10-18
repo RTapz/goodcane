@@ -52,6 +52,8 @@ export default defineNuxtConfig({
     databaseUrl: process.env.DATABASE_URL ?? '',
     demoWhatsappNumber: process.env.DEMO_WHATSAPP_NUMBER ?? '',
     ownerPasscode: process.env.OWNER_PASSCODE ?? '',
+    // Only true when deployed on Vercel: see server/domain/owner/client-ip.ts.
+    trustProxy: process.env.TRUST_PROXY === 'true',
     public: {
       demoMode: process.env.DEMO_MODE !== 'false',
       appUrl: process.env.APP_URL ?? 'http://localhost:3000'

@@ -1,7 +1,7 @@
 // Forecast snapshots for the completed sample drops (spec 9, BR-FC10), so the accuracy
 // metric has scored drops. Pure: it turns the sample rows into the same inputs O1 uses and
 // calls the same snapshotAtCheckpoint, which itself ignores anything after the checkpoint.
-import { snapshotAtCheckpoint, type HistoryDrop, type PaidOrder } from '../../domain/forecast'
+import { snapshotAtCheckpoint, type HistoryDrop, type PaidOrder, type TurnedAwayAt } from '../../domain/forecast'
 import type { forecastSnapshots } from '../schema'
 import type { SampleData } from './build'
 
@@ -31,8 +31,17 @@ function paidOrdersOn(data: SampleData, dropId: string, units: Map<string, numbe
       status: o.status as string,
       paidAt: o.paidAt as Date,
       units: units.get(o.id) ?? 0,
+      customerId: o.customerId ?? null,
       cancelledAt: cancelledAt.get(o.id) ?? null
     }))
+}
+
+/** Turned-away rows on one drop, with the customer of the order that was turned away, if any. */
+function turnedAwayOn(data: SampleData, dropId: string): TurnedAwayAt[] {
+  const customerOf = new Map(data.orders.map((o) => [o.id, o.customerId ?? null]))
+  return data.turnedAway
+    .filter((t) => t.dropId === dropId)
+    .map((t) => ({ units: t.units, customerId: t.orderId ? (customerOf.get(t.orderId) ?? null) : null, createdAt: t.createdAt as Date }))
 }
 
 export function buildSnapshots(data: SampleData, checkpointDays: number, newId: () => string): ForecastSnapshotRow[] {
@@ -56,6 +65,7 @@ export function buildSnapshots(data: SampleData, checkpointDays: number, newId: 
       cutOffAt: drop.cutOffAt,
       checkpointDays,
       paid: paidOrdersOn(data, drop.id, units),
+      turnedAway: turnedAwayOn(data, drop.id),
       history
     })
     if (snapshot.pace !== null) {

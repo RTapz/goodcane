@@ -393,8 +393,16 @@ describe('owner gate over HTTP (spec 8)', () => {
   })
 
   it('5 failed attempts in 15 minutes gives 429, even for the right passcode', async () => {
-    // One failure already happened above; four more reach the limit of 5.
-    for (let i = 0; i < 4; i++) expect((await login('not-the-passcode')).status).toBe(401)
+    // One failure already happened above; four more reach the limit of 5. Each guess claims a
+    // different address in forwarded headers: with TRUST_PROXY off (the default) they are ignored.
+    for (let i = 0; i < 4; i++) {
+      const spoofed = await fetch('/api/owner/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': `198.51.100.${i}`, 'x-vercel-forwarded-for': `203.0.113.${i}` },
+        body: JSON.stringify({ passcode: 'not-the-passcode' })
+      })
+      expect(spoofed.status).toBe(401)
+    }
     expect((await login(ownerPasscode)).status).toBe(429)
   })
 })

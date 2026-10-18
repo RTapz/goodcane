@@ -59,6 +59,14 @@ describe('O1 demand', () => {
     expect(d.forecast.range).toEqual({ low: 36, high: 44, fallback: true })
   })
 
+  it('projects from demand so far: turned-away units count on the forecast side too', async () => {
+    await fourOrdinaryDrops()
+    const dropId = await openDropWithTenPaid()
+    await turnAway(db, dropId, 2, null)
+    const d = await demand(dropId)
+    expect(d.forecast.pace).toBe(48) // (10 paid + 2 turned away) / 0.25
+  })
+
   it('leaves a drop that hit capacity out of the pace table, but counts its turned-away demand', async () => {
     await fourOrdinaryDrops()
     // Capacity 30, all paid early, then 5 turned away. Its shape would pull the pace share up.

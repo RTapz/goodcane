@@ -2,7 +2,7 @@
 // The demo has a few hundred orders, so reading them all is simpler and safer than many
 // narrow queries. Everything is in capacity-weighted units (BR-C1).
 import { asc, eq, sql } from 'drizzle-orm'
-import { turnedAwayUnits, type PaidOrder, type PaidUnits } from '../../domain/forecast'
+import { turnedAwayUnits, type PaidOrder, type PaidUnits, type TurnedAwayAt } from '../../domain/forecast'
 import { isRequestLapsed, type OrderStatus } from '../../domain/orders/requests'
 import type { DbOrTx } from '../../db/client'
 import { drops, menuItems, orderHistory, orderItems, orders, turnedAway } from '../../db/schema'
@@ -36,6 +36,8 @@ export interface DropFact {
   finalPaid: PaidUnits[]
   /** Every order that was ever paid, with any cancellation time, for snapshots. */
   everPaid: PaidOrder[]
+  /** Turned-away rows with when they were recorded, for snapshots (BR-FC10). */
+  turnedAwayRows: TurnedAwayAt[]
   /** Requested, unpaid and not lapsed (5.3 note). */
   openRequestedUnits: number
   /** After the BR-F2 dedupe. */
@@ -71,7 +73,7 @@ export async function loadDropFacts(db: DbOrTx, now: Date, expiryDays: number): 
   const cancelled = new Map(cancellations.map((c) => [c.orderId, c]))
 
   const turnedAwayRows = await db
-    .select({ dropId: turnedAway.dropId, units: turnedAway.units, customerId: orders.customerId })
+    .select({ dropId: turnedAway.dropId, units: turnedAway.units, customerId: orders.customerId, createdAt: turnedAway.createdAt })
     .from(turnedAway)
     .leftJoin(orders, eq(orders.id, turnedAway.orderId))
 
@@ -101,7 +103,8 @@ export async function loadDropFacts(db: DbOrTx, now: Date, expiryDays: number): 
       finalPaid: paidNow.map((o) => ({ paidAt: o.paidAt as Date, units: o.units })),
       everPaid: facts
         .filter((o) => o.paidAt !== null)
-        .map((o) => ({ paidAt: o.paidAt as Date, units: o.units, cancelledAt: o.cancelledAt })),
+        .map((o) => ({ paidAt: o.paidAt as Date, units: o.units, customerId: o.customerId, cancelledAt: o.cancelledAt })),
+      turnedAwayRows: turnedAwayRows.filter((t) => t.dropId === drop.id).map(({ units, customerId, createdAt }) => ({ units, customerId, createdAt })),
       openRequestedUnits: facts.filter((o) => o.status === 'requested' && !o.lapsed).reduce((sum, o) => sum + o.units, 0),
       turnedAwayUnits: turnedAwayTotal,
       demandUnits: paidUnits + turnedAwayTotal,

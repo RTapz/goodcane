@@ -41,7 +41,8 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 
 - `/owner` (This drop: demand, forecast, buffer, pilot metrics) and `/owner/orders` (fulfil, cancel, refund-due flags) sit behind one passcode, `OWNER_PASSCODE`. Each valid login gets a random session token in an HttpOnly cookie, `gc_owner`; only its hash is stored, and it lasts 12 hours. The customer cookie never opens these screens.
 - After 5 wrong passcodes from one IP within 15 minutes, that IP gets "Too many attempts" (429) until the oldest of those failures is more than 15 minutes old. Only a hash of the IP and the time are kept, for 24 hours.
-- **This is a demo gate, not real authentication.** A live service needs proper owner accounts (individual logins, password reset, ideally two-factor), and behind a proxy the deployment must pass the real client IP through for the lockout to work.
+- **This is a demo gate, not real authentication.** A live service needs proper owner accounts (individual logins, password reset, ideally two-factor). See `TRUST_PROXY` below for where the client address comes from.
+- **`TRUST_PROXY`** (default `false`). When `false`, the lockout counts attempts against the address of the connection. On Vercel every request arrives from Vercel's own servers, so set it to `true` there: the lockout then reads the client address from `x-vercel-forwarded-for`, which Vercel sets itself. Other forwarded headers such as `X-Forwarded-For` are ignored in both modes, because any client can fill them in. Do not set it to `true` anywhere else, or clients could choose their own address by sending that header.
 - The forecast is explained step by step in [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md), section 6.
 
 ## Known limitations

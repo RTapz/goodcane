@@ -191,13 +191,13 @@ Implemented as pure, tested functions in `server/domain/forecast`.
 - **BR-FC1 Demand units** for a closed drop = paid_confirmed units + turned-away units. Use demand units for all history, otherwise capped drops understate demand.
 - **BR-FC2 Baseline:** weighted moving average of the last 4 closed drops' demand units, weights 1, 2, 3, 4 (newest highest). Fixture: 40, 44, 50, 52 gives 48.6.
 - **BR-FC3 Pace table:** from closed drops, using `paid_at`, compute the cumulative share of final planned units already paid by each day before cut-off (5, 4, 3, 2, 1, 0), averaged across drops. Seed shape: 20%, 35%, 60%, 80%, 92%, 100%.
-- **BR-FC4 Pace projection** at day d = paid units now divided by pace share at day d. Fixture: 30 paid at 60% gives 50; 30 at 40% gives 75. Between whole days the share is a straight line between the two day marks (2.3 days before cut-off, between 60% at day 3 and 80% at day 2, gives 74%). More than 5 days before cut-off there is no pace data, so the pace projection is unavailable; at or after cut-off the share is 1.
+- **BR-FC4 Pace projection** at day d = demand units so far divided by pace share at day d. Demand so far = paid units plus turned-away units recorded so far (BR-F2 dedupe), so the projection and the actual it is scored against (BR-FC11) are both demand units. Fixture: 30 paid at 60% gives 50; 30 at 40% gives 75. Between whole days the share is a straight line between the two day marks (2.3 days before cut-off, between 60% at day 3 and 80% at day 2, gives 74%). More than 5 days before cut-off there is no pace data, so the pace projection is unavailable; at or after cut-off the share is 1.
 - **BR-FC5** Use the baseline when there are fewer than 4 closed drops, or when it is more than 5 days before cut-off (labelled "Baseline (too early for pace)"); otherwise the headline projection is the pace projection, with the baseline shown for comparison.
 - **BR-FC6 Likely tier** = open requested units multiplied by the request-to-paid conversion rate from closed drops (fallback sample 0.7 with fewer than 3 closed drops). Always shown separately from Paid.
 - **BR-FC7 Range:** projection plus or minus the recent error band (fallback plus or minus 10%). Show as "about 45 to 55".
 - **BR-FC8 Unplanned buffer** from the last up to 5 closed drops' unplanned sold: Careful with waste = lowest, Balanced = average (rounded), Never sell out = highest. Default **Balanced**. With fewer than 3 closed drops show a sample default with "Low confidence".
 - **BR-FC9 Suggested production** = round(projected planned units + buffer). The owner always decides.
-- **BR-FC10 Snapshots:** at the checkpoint (sample: 3 days before cut-off) store the projection in `forecast_snapshots`. A snapshot is always computed **as of the nominal checkpoint** (cut-off minus `forecast_checkpoint_days`), using only payments with `paid_at` at or before that moment and only drops whose cut-off is before it, so a late computation gives exactly the same result as an on-time one. It is written lazily on the first O1 load after the checkpoint, once per drop and method (idempotent), never on every page view. The seed writes past drops' snapshots with the same function.
+- **BR-FC10 Snapshots:** at the checkpoint (sample: 3 days before cut-off) store the projection in `forecast_snapshots`. A snapshot is always computed **as of the nominal checkpoint** (cut-off minus `forecast_checkpoint_days`), using only payments with `paid_at` at or before that moment (and not cancelled by then), turned-away rows recorded at or before it (deduped against the customers paid by then), and only drops whose cut-off is before it, so a late computation gives exactly the same result as an on-time one. It is written lazily on the first O1 load after the checkpoint, once per drop and method (idempotent), never on every page view. The seed writes past drops' snapshots with the same function.
 - **BR-FC11 Accuracy:** actual = final demand units at cut-off. Report MAPE, WAPE, bias and the naive benchmark (forecast = previous drop's actual), with the number of scored drops. Score only drops that have a pace snapshot.
   - MAPE = average of absolute error divided by actual.
   - WAPE = sum of absolute errors divided by sum of actuals.
@@ -205,6 +205,7 @@ Implemented as pure, tested functions in `server/domain/forecast`.
   - Test fixture (forecast, actual): (50, 46), (44, 50), (58, 52), (47, 48), (55, 50). Expected MAPE about 8.9%, WAPE about 8.9% (22 over 246), bias about +3.2%, naive benchmark about 6.0% on drops 2 to 5 (the same MAPE formula, error divided by actual: 4/50, 2/52, 4/48, 2/50, average 6.04%).
   - Bias is (forecast minus actual) divided by actual, so a positive bias means over-forecasting. Pairs with an actual of 0 are skipped and counted, never divided by.
   - Snapshots are taken as of the nominal checkpoint (BR-FC10), so scoring never uses data from after the checkpoint.
+  - Like for like: the forecast (BR-FC4), the actual and the naive benchmark are all demand units (paid plus turned away).
 - **BR-FC12 Planned share** = pre-ordered units divided by (pre-ordered units plus unplanned sold).
 - **Honesty rule:** the demo forecast learns from seeded data, so it proves the mechanism, not real accuracy. Say so on the metrics page and in the write-up.
 
@@ -318,7 +319,7 @@ docs/           this spec
 
 Business logic lives in `server/domain` as pure functions with unit tests. Components contain no business rules.
 
-Environment variables (`.env.example` committed, real `.env` never): `DATABASE_URL`, `DEMO_MODE=true`, `DEMO_WHATSAPP_NUMBER`, `OWNER_PASSCODE`, `APP_URL`.
+Environment variables (`.env.example` committed, real `.env` never): `DATABASE_URL`, `DEMO_MODE=true`, `DEMO_WHATSAPP_NUMBER`, `OWNER_PASSCODE`, `APP_URL`, `TRUST_PROXY` (default false: the owner login throttle uses the connection address; true on Vercel: it uses the `x-vercel-forwarded-for` header that the platform sets, and ignores any other forwarded header).
 
 Key endpoints (indicative):
 

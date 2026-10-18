@@ -35,7 +35,7 @@ export async function ensureSnapshots(
     if (hasSnapshot.has(fact.drop.id) || checkpointAt.getTime() > ctx.now.getTime()) continue
 
     const history = historyOf(facts.filter((f) => f.drop.id !== fact.drop.id))
-    const snapshot = snapshotAtCheckpoint({ cutOffAt: fact.drop.cutOffAt, checkpointDays: ctx.checkpointDays, paid: fact.everPaid, history })
+    const snapshot = snapshotAtCheckpoint({ cutOffAt: fact.drop.cutOffAt, checkpointDays: ctx.checkpointDays, paid: fact.everPaid, turnedAway: fact.turnedAwayRows, history })
     const base = { dropId: fact.drop.id, checkpointAt: snapshot.checkpointAt, isSample: ctx.demoMode }
     if (snapshot.pace !== null) toWrite.push({ ...base, method: 'pace', projectedUnits: snapshot.pace })
     if (snapshot.baseline !== null) toWrite.push({ ...base, method: 'baseline', projectedUnits: snapshot.baseline })
