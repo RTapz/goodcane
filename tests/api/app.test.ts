@@ -314,6 +314,30 @@ describe('returning customer: /api/me, reminders and the C7 two-step reorder', (
   })
 })
 
+describe('deployment basics (spec 8)', () => {
+  it('GET /api/health answers ok with the database status, and nothing else', async () => {
+    const response = await fetch('/api/health')
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ ok: true, database: true })
+    expect(response.headers.get('cache-control')).toBe('no-store')
+  })
+
+  it('asks search engines not to index pages or API responses', async () => {
+    for (const path of ['/', '/api/health', '/api/drops/next']) {
+      expect((await fetch(path)).headers.get('x-robots-tag'), path).toBe('noindex, nofollow')
+    }
+    expect(await $fetch<string>('/')).toMatch(/<meta name="robots" content="noindex, nofollow">/)
+  })
+
+  it('refuses request bodies over 16 KB with 413 before any route runs', async () => {
+    const big = JSON.stringify({ firstName: 'x'.repeat(17 * 1024) })
+    for (const path of ['/api/orders', '/api/owner/login']) {
+      const response = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: big })
+      expect(response.status, path).toBe(413)
+    }
+  })
+})
+
 describe('Demo data disclosure (spec constraint 8)', () => {
   it('every page renders the Demo data button, including the owner sign-in', async () => {
     for (const path of ['/', '/order', '/owner/login', '/link-invalid']) {

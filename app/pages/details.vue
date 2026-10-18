@@ -107,6 +107,8 @@ async function submit() {
       // Never moved silently (BR-F1): back to C2 to choose what to do.
       setNotice(`Only ${plural(body.spacesLeft ?? 0, 'space is', 'spaces are')} left in this drop. Please adjust your order.`)
       await navigateTo('/order')
+    } else if (e.statusCode === 409 && body?.reason === 'too_many_open_requests') {
+      submitError.value = 'You already have 3 unpaid orders. Pay for one first, or wait for one to lapse.'
     } else if (e.statusCode === 409 && body?.reason && reasonMessages[body.reason]) {
       setNotice(reasonMessages[body.reason]!)
       await navigateTo('/order')

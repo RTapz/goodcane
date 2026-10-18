@@ -208,6 +208,22 @@ describe('placeOrder (BR-O9)', () => {
     expect(history.map((h) => `${h.fromStatus}>${h.toStatus}:${h.actor}`)).toContain('requested>expired:system')
   })
 
+  it('BR-O10: a session holds at most 3 open requests; re-ordering the same drop still works', async () => {
+    const third = await makeDrop(10, new Date(now.getTime() + 120 * HOUR))
+    const fourth = await makeDrop(10, new Date(now.getTime() + 144 * HOUR))
+    const first = await placeOrder(db, input(), ctx())
+    if (first.kind !== 'created') throw new Error(first.kind)
+    const me = first.customerId
+    expect((await placeOrder(db, input({ dropId: otherDropId }), ctx(me))).kind).toBe('created')
+    expect((await placeOrder(db, input({ dropId: third }), ctx(me))).kind).toBe('created')
+
+    const before = await count(orders)
+    expect(await placeOrder(db, input({ dropId: fourth }), ctx(me))).toEqual({ kind: 'rejected', reason: 'too_many_open_requests' })
+    expect(await count(orders)).toBe(before)
+    // A new order on a drop that already has one retires the old request first (BR-O8), so it fits.
+    expect((await placeOrder(db, input(), ctx(me))).kind).toBe('created')
+  })
+
   it('rejects an unknown or inactive menu item', async () => {
     await db.update(menuItems).set({ active: false }).where(eq(menuItems.id, item500))
     expect(await placeOrder(db, input(), ctx())).toEqual({ kind: 'invalid', reason: 'invalid_item' })

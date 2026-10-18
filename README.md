@@ -1,5 +1,7 @@
 # GoodCane Drops (demo)
 
+**Live demo:** _link to be added after deployment_
+
 A mobile-first pre-order and reorder prototype for GoodCane's bottled sugarcane drinks. Everything here is a demo: sample data, no real payments, no real messages. The full brief is in [docs/PROJECT_SPEC.md](docs/PROJECT_SPEC.md).
 
 ## Setup
@@ -23,8 +25,9 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 | `pnpm test:api` | Builds the app and calls it over HTTP against the test database, which it migrates and seeds itself (about a minute) |
 | `pnpm typecheck` | Type checks the whole project |
 | `pnpm db:generate` | Creates a new migration after a schema change |
-| `pnpm db:migrate` | Applies migrations to `DATABASE_URL` |
-| `pnpm seed` | Resets all sample data (see below) |
+| `pnpm db:migrate` | Applies migrations to `MIGRATION_DATABASE_URL`, else `DATABASE_URL`. Refuses a remote database unless `ALLOW_REMOTE_DB=true` |
+| `pnpm seed` | Resets all sample data (see below). Same database choice and remote guard as `db:migrate` |
+| `pnpm smoke --url <base>` | Proves a deployed app works end to end over HTTP (see Deployment). Writes sample data |
 | `pnpm retention` | Retention purge (not built yet) |
 
 ## Sample data (`pnpm seed`)
@@ -48,7 +51,7 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 ## Known limitations
 
 - **Session after a lost response.** Orders are idempotent: a repeated submission returns the same order (see [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md), section 3). But if the first response is lost and only the replay's response arrives, the browser can end up without a session cookie, because the server stores only the token's hash and cannot send it again. The customer then sees "We can't find this order on this device" and can place the order again; the earlier request lapses after 2 days. The same applies to the private link after payment: if the response carrying it is lost, the customer can open C6 and use **Make a new link** (which revokes the old one).
-- **Rate limiting** on order creation (spec section 8) is deferred to the deployment checklist.
+- **Rate limiting** is a Vercel WAF rule set in the dashboard (see Deployment), not code: serverless instances share no memory, so an in-memory limiter would reset at random and protect nothing.
 - **Session cookie** is marked `Secure` outside `pnpm dev`, so a production build served over plain http (for example `nuxt preview` on a LAN) will not keep a session.
 
 ## Privacy and the private link
@@ -58,3 +61,78 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 - **It sits in the URL path** (`/c/<token>`). Hosting platforms and proxies may record request paths in their access logs, so in a deployed demo the token can end up in those logs. That is acceptable for sample data. A live service would use a short-lived exchange step instead: the link carries a one-time code that the page swaps, in a request body, for a session, so the long-lived secret never appears in a URL. The redirect after opening the link sends `Referrer-Policy: no-referrer` so the token is not passed on to other sites.
 - **Lost or exposed link:** the customer can open the confirmation page on a device that still has a session and choose **Make a new link**; the old link stops working at once.
 - **Send to my WhatsApp** opens a chat with `DEMO_WHATSAPP_NUMBER` (the developer's own number) only, never GoodCane's or a customer's number, and the app never sends anything itself.
+
+## Environment variables
+
+Locally, the app, migrations and the seed read the plain names from `.env`. On Vercel, Nuxt only applies variables whose names start with `NUXT_` at runtime, so the deployed names differ (and nothing secret is baked into the build). Never put a Supabase connection string in `.env` or any file: set it in Vercel, or for one command as shown under Deployment.
+
+| Variable (local) | Name on Vercel | What it is for | Where it is set | Deployed value |
+|---|---|---|---|---|
+| `DATABASE_URL` | `NUXT_DATABASE_URL` | The app's database connection | `.env` locally; Vercel, Production only | Supabase **transaction pooler** string (port 6543) |
+| `MIGRATION_DATABASE_URL` | (not on Vercel) | Migrations and the seed; falls back to `DATABASE_URL` | One PowerShell command | Supabase **session pooler** string (port 5432) |
+| `ALLOW_REMOTE_DB` | (not on Vercel) | Lets `pnpm db:migrate` and `pnpm seed` change a remote database | One PowerShell command | `true`, only for those commands |
+| `DATABASE_POOL_MODE` | (not needed) | `transaction` forces pooled settings; used to test them locally | Test runs only | Not set (port 6543 already means pooled) |
+| `DEMO_MODE` | `NUXT_PUBLIC_DEMO_MODE` | Flags every row the app creates as sample data | `.env`; Vercel | `true` |
+| `DEMO_WHATSAPP_NUMBER` | `NUXT_DEMO_WHATSAPP_NUMBER` | The only number a wa.me link may use; empty hides the button | `.env`; Vercel | Empty |
+| `OWNER_PASSCODE` | `NUXT_OWNER_PASSCODE` | The demo owner gate | `.env`; Vercel; `$env` for the smoke test | A demo passcode for reviewers (see below) |
+| `TRUST_PROXY` | `NUXT_TRUST_PROXY` | Read the client address from `x-vercel-forwarded-for` for the login limit | `.env` (false); Vercel | `true` (Vercel only) |
+| `APP_URL` | `NUXT_PUBLIC_APP_URL` | Base of private links (`/c/<token>`) | `.env`; Vercel | `https://<your-project>.vercel.app` |
+| `TEST_DATABASE_URL` | (not on Vercel) | Integration and API tests; name must end in `_test` | `.env` | Not deployed |
+
+**OWNER_PASSCODE is a demo passcode shown to reviewers.** Never use a password you use anywhere else.
+
+## Deployment (Vercel and Supabase)
+
+Functions run in **`dub1` (Dublin)**, set in `vercel.json`. Vercel's `dub1` is AWS eu-west-1, the same region as the Supabase project, so every database round trip stays in Dublin. Vercel's default, `iad1` (Washington), would add a transatlantic hop to every query. Nuxt is detected by Vercel automatically; `vercel.json` only sets the region.
+
+In order:
+
+1. **Supabase.** Create the project in eu-west-1. From **Connect**, copy the **transaction pooler** string (port 6543) and the **session pooler** string (port 5432). The app does not use the Data API or any anon key: you can turn the Data API off under the project's API settings.
+2. **Vercel variables.** In the project's Settings, Environment Variables, add these for **Production only** (previews then build without a database and simply report `database: false` on `/api/health`):
+   `NUXT_DATABASE_URL`, `NUXT_OWNER_PASSCODE`, `NUXT_TRUST_PROXY` = `true`, `NUXT_PUBLIC_DEMO_MODE` = `true`, `NUXT_PUBLIC_APP_URL` = your production URL, `NUXT_DEMO_WHATSAPP_NUMBER` = empty.
+3. **Deploy** from GitHub (push, then let Vercel build), and check `https://<your-app>/api/health` shows `{"ok":true,"database":true}`.
+4. **Migrate and seed from your PC**, against the session pooler. Each line sets the variables, runs one command, then removes them (in PowerShell, `$env:` lasts for the whole window otherwise). Paste the string from the Supabase dashboard where shown; never save it in a file:
+
+   ```powershell
+   $env:ALLOW_REMOTE_DB="true"; $env:MIGRATION_DATABASE_URL="<session pooler string>"; pnpm db:migrate; Remove-Item Env:ALLOW_REMOTE_DB, Env:MIGRATION_DATABASE_URL
+   ```
+
+   ```powershell
+   $env:ALLOW_REMOTE_DB="true"; $env:MIGRATION_DATABASE_URL="<session pooler string>"; pnpm seed; Remove-Item Env:ALLOW_REMOTE_DB, Env:MIGRATION_DATABASE_URL
+   ```
+
+5. **Smoke test** the live app. It writes one sample order and one reorder, logs in to the owner screens with the passcode from `$env:OWNER_PASSCODE` (never printed or saved), and prints PASS or FAIL per step:
+
+   ```powershell
+   $env:OWNER_PASSCODE="<the demo passcode>"; pnpm smoke --url https://<your-app>.vercel.app; Remove-Item Env:OWNER_PASSCODE
+   ```
+
+6. **Reseed** (step 4's seed command again) to remove the smoke test's orders. It deletes only sample rows.
+
+**Rate limiting.** Add one WAF rule in the Vercel dashboard (Firewall, Configure, New Rule, Then: Rate Limit; available on Hobby with 1 rate-limit rule, fixed window of 10 seconds to 10 minutes, keyed by IP). Suggested: path starts with `/api/orders`, method POST, 10 requests per 60 seconds per IP, action 429.
+
+### Security notes
+
+- The app connects to Supabase **only from the server**. The Supabase Data API is not used, and no anon or service key exists in the code or the browser.
+- **Row level security is on for every table, with no policies** (migration 0004, tested). The app connects as the table owner, which bypasses RLS; anyone reaching the Data API with an anon key would read nothing.
+- Every response has `X-Robots-Tag: noindex, nofollow` and every page a robots meta tag, so the demo is not indexed. Every page shows the Demo data button.
+- Request bodies on `/api/*` are capped at 16 KB (413), every input string has a length limit, and one session may hold at most 3 unpaid requests (BR-O10).
+
+### Database connections and the transaction pooler
+
+On Vercel the app uses the transaction pooler (port 6543), which hands each transaction to whichever server connection is free. `server/db/client.ts` therefore turns off prepared statements (`prepare: false`), uses one connection per instance and requires SSL. Locally, `DATABASE_POOL_MODE=transaction` applies the same settings, and every test suite passes in both modes.
+
+What stays correct, and why:
+
+- **Capacity (`SELECT ... FOR UPDATE`).** Row locks belong to a transaction. The pooler keeps a whole transaction on one server connection, so the drop row stays locked from the lock to `COMMIT`, exactly as before. `tests/integration/pooled.test.ts` races two separate pooled clients (two "instances") for the last spaces: exactly one hold wins.
+- **Idempotency.** Duplicate orders and payments are stopped by unique constraints and `ON CONFLICT` in the database, which do not depend on which connection a request uses.
+- **Owner login limit.** It uses `pg_advisory_xact_lock`, a transaction-scoped lock released at `COMMIT`. Session-level locks would not be safe with this pooler, and none are used (nor `SET` or temporary tables). The same test file fires parallel wrong passcodes from both clients: they stop at exactly 5.
+
+### Known limits of this demo
+
+- Sample data only: drinks, prices, dates, the pickup point, delivery areas and customers are made up, and payment is a simulation.
+- The owner gate is one shared demo passcode, not owner accounts.
+- The private link travels in the URL path and can appear in hosting logs (see Privacy below).
+- Rate limiting depends on the Vercel WAF rule above; without it, anyone can create many sample orders (each session is capped at 3 unpaid ones).
+- No reminders are ever sent, and the deployed demo shows no WhatsApp button (`NUXT_DEMO_WHATSAPP_NUMBER` is empty).
+- One region (`dub1`) and one small database: fine for reviewers, not sized for real traffic.

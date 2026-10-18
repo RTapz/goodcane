@@ -16,6 +16,11 @@ export default defineNuxtConfig({
     }
   },
 
+  // A demo: keep it out of search engines, pages and API alike (spec 8).
+  routeRules: {
+    '/**': { headers: { 'X-Robots-Tag': 'noindex, nofollow' } }
+  },
+
   // Pre-compress built assets (gzip and Brotli) so a weak connection downloads far less.
   nitro: {
     compressPublicAssets: true
@@ -25,7 +30,7 @@ export default defineNuxtConfig({
     strict: true,
     // Type-check plain Node unit tests too (paths are relative to .nuxt/).
     nodeTsConfig: {
-      include: ['../tests/unit/**/*', '../tests/api/**/*', '../tests/integration/**/*', '../tests/support/**/*']
+      include: ['../tests/unit/**/*', '../tests/api/**/*', '../tests/integration/**/*', '../tests/support/**/*', '../scripts/**/*']
     }
   },
 
@@ -35,6 +40,7 @@ export default defineNuxtConfig({
       title: 'GoodCane Drops',
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'robots', content: 'noindex, nofollow' },
         { name: 'theme-color', content: '#1f5c2f' }
       ],
       // Installable from C6 ("Add to home screen"). Icons are a plain text "GD" tile.
@@ -46,8 +52,11 @@ export default defineNuxtConfig({
     }
   },
 
-  // Read from the variable names in .env.example. Top-level keys stay on the server;
-  // only `public` is sent to the browser.
+  // Local development reads the plain names in .env (DATABASE_URL and so on). Nuxt only applies
+  // NUXT_-prefixed variables at runtime, so a deployment sets NUXT_DATABASE_URL, NUXT_OWNER_PASSCODE,
+  // NUXT_TRUST_PROXY, NUXT_DEMO_WHATSAPP_NUMBER, NUXT_PUBLIC_DEMO_MODE and NUXT_PUBLIC_APP_URL
+  // (README, Deployment); nothing secret is baked into the build. Top-level keys stay on the
+  // server; only `public` is sent to the browser.
   runtimeConfig: {
     databaseUrl: process.env.DATABASE_URL ?? '',
     demoWhatsappNumber: process.env.DEMO_WHATSAPP_NUMBER ?? '',

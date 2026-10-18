@@ -16,12 +16,13 @@ export default async function setup() {
   } finally {
     await client.end()
   }
-  // The seed reads DATABASE_URL; values already in the environment win over .env.
+  // The seed reads MIGRATION_DATABASE_URL, then DATABASE_URL; values already in the environment win over .env.
   // Its output is captured and printed in full only if it fails, so failures are never silent.
   try {
     execFileSync(process.execPath, [`${rootDir}/node_modules/tsx/dist/cli.mjs`, 'server/db/seed/index.ts'], {
       cwd: rootDir,
-      env: { ...process.env, DATABASE_URL: url },
+      // Both names point at the test database, so a Supabase string in .env can never be seeded here.
+      env: { ...process.env, DATABASE_URL: url, MIGRATION_DATABASE_URL: url },
       stdio: 'pipe',
       encoding: 'utf8'
     })

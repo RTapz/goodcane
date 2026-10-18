@@ -135,6 +135,8 @@ async function pay(expectedTotalPesewas = total.value) {
     const reason = e.data?.data?.reason
     if (reason === 'price_changed') {
       newTotal.value = e.data?.data?.totalPesewas ?? null
+    } else if (reason === 'too_many_open_requests') {
+      payError.value = 'You already have 3 unpaid orders. Pay for one first, or wait for one to lapse.'
     } else if (reason === 'details_needed') {
       await continueIn('/details')
     } else if (reason === 'not_enough_space' || reason === 'drop_closed') {

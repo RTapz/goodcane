@@ -14,7 +14,8 @@
     "test:api": "vitest run --project api",
     "seed": "tsx server/db/seed/index.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "dependencies": {
     "@nuxt/ui": "^4.11.3",

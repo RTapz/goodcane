@@ -24,7 +24,7 @@ export const createOrderBody = z.discriminatedUnion('fulfilment', [
     ...base,
     fulfilment: z.literal('delivery'),
     deliveryAddress: z.string().trim().min(5, 'Enter the delivery address').max(200, 'Use 200 characters or fewer'),
-    deliveryAreaId: z.string().min(1, 'Choose a delivery area')
+    deliveryAreaId: z.string().min(1, 'Choose a delivery area').max(64)
   })
 ])
 
@@ -45,7 +45,7 @@ const reorderBase = {
 
 export const reorderBody = z.discriminatedUnion('fulfilment', [
   z.strictObject({ ...reorderBase, fulfilment: z.literal('pickup') }),
-  z.strictObject({ ...reorderBase, fulfilment: z.literal('delivery'), deliveryAreaId: z.string().min(1) })
+  z.strictObject({ ...reorderBase, fulfilment: z.literal('delivery'), deliveryAreaId: z.string().min(1).max(64) })
 ])
 
 export type ReorderBody = z.infer<typeof reorderBody>

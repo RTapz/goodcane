@@ -76,3 +76,11 @@ export function ordersToRetire(
     )
     .map((o) => o.id)
 }
+
+/** BR-O10: open requests one session may hold at once, across all drops (abuse protection). */
+export const MAX_OPEN_REQUESTS = 3
+
+/** True when a session already holds the maximum number of open (unpaid, not lapsed) requests. */
+export function atOpenRequestLimit(openRequests: number): boolean {
+  return openRequests >= MAX_OPEN_REQUESTS
+}

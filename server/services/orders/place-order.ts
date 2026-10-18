@@ -4,7 +4,7 @@
 import { and, eq, inArray } from 'drizzle-orm'
 import { spacesLeft } from '../../domain/capacity/spaces'
 import { priceOrder, type Fulfilment } from '../../domain/orders/pricing'
-import { checkOrderAllowed, ordersToRetire } from '../../domain/orders/requests'
+import { atOpenRequestLimit, checkOrderAllowed, isRequestLapsed, ordersToRetire } from '../../domain/orders/requests'
 import type { Db, Tx } from '../../db/client'
 import { accessTokens, customers, drops, menuItems, orderHistory, orderItems, orders } from '../../db/schema'
 import { dropUsage } from '../capacity'
@@ -44,6 +44,7 @@ export type PlaceOrderResult =
   | { kind: 'rejected'; reason: 'not_enough_space'; spacesLeft: number }
   | { kind: 'rejected'; reason: 'idempotency_conflict' }
   | { kind: 'rejected'; reason: 'price_changed'; totalPesewas: number }
+  | { kind: 'rejected'; reason: 'too_many_open_requests' }
   | { kind: 'invalid'; reason: 'unknown_drop' | 'invalid_item' | 'unknown_area' }
 
 /** Thrown inside the transaction to roll it back and hand a result to the caller. */
@@ -170,6 +171,18 @@ export async function placeOrder(db: Db, input: PlaceOrderInput, ctx: PlaceOrder
             }))
           )
         }
+      }
+
+      // BR-O10: at most 3 open requests per session, counted after BR-O8 has retired this drop's older ones.
+      if (!isNewCustomer) {
+        const open = await tx
+          .select({ status: orders.status, createdAt: orders.createdAt, cutOffAt: drops.cutOffAt })
+          .from(orders)
+          .innerJoin(drops, eq(drops.id, orders.dropId))
+          .where(and(eq(orders.customerId, customerId), eq(orders.status, 'requested')))
+        const { request_expiry_days: expiryDays } = await readSettings(tx, ['request_expiry_days'])
+        const live = open.filter((o) => !isRequestLapsed(o, o.cutOffAt, now, expiryDays)).length
+        if (atOpenRequestLimit(live)) throw new Outcome({ kind: 'rejected', reason: 'too_many_open_requests' })
       }
 
       const [order] = await tx

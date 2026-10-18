@@ -53,12 +53,14 @@ const timestamptz = (name: string) => timestamp(name, { withTimezone: true, mode
 const createdAt = () => timestamptz('created_at').notNull().defaultNow()
 
 // Tables
+// Every table has row level security on and no policies: the app connects only from the server as
+// the table owner (which bypasses RLS), so the Supabase Data API with an anon key can read nothing.
 
 export const settings = pgTable('settings', {
   key: text('key').primaryKey(),
   value: jsonb('value').notNull(),
   isSample: isSample()
-})
+}).enableRLS()
 
 export const drops = pgTable(
   'drops',
@@ -79,7 +81,7 @@ export const drops = pgTable(
     check('drops_capacity_non_negative', sql`${t.capacity} >= 0`),
     check('drops_cut_off_before_drop', sql`${t.cutOffAt} <= ${t.dropAt}`)
   ]
-)
+).enableRLS()
 
 export const menuItems = pgTable(
   'menu_items',
@@ -98,7 +100,7 @@ export const menuItems = pgTable(
     check('menu_items_price_non_negative', sql`${t.pricePesewas} >= 0`),
     check('menu_items_weight_positive', sql`${t.capacityWeight} > 0`)
   ]
-)
+).enableRLS()
 
 export const customers = pgTable(
   'customers',
@@ -116,7 +118,7 @@ export const customers = pgTable(
     isSample: isSample()
   },
   (t) => [index('customers_phone_idx').on(t.phone)]
-)
+).enableRLS()
 
 export const accessTokens = pgTable(
   'access_tokens',
@@ -134,7 +136,7 @@ export const accessTokens = pgTable(
     isSample: isSample()
   },
   (t) => [index('access_tokens_customer_idx').on(t.customerId)]
-)
+).enableRLS()
 
 // Append-only (BR-R2).
 export const consentEvents = pgTable(
@@ -150,7 +152,7 @@ export const consentEvents = pgTable(
     isSample: isSample()
   },
   (t) => [index('consent_events_customer_idx').on(t.customerId)]
-)
+).enableRLS()
 
 export const orders = pgTable(
   'orders',
@@ -182,7 +184,7 @@ export const orders = pgTable(
     check('orders_fee_non_negative', sql`${t.feePesewas} >= 0`),
     check('orders_total_non_negative', sql`${t.totalPesewas} >= 0`)
   ]
-)
+).enableRLS()
 
 export const orderItems = pgTable(
   'order_items',
@@ -203,7 +205,7 @@ export const orderItems = pgTable(
     check('order_items_quantity_positive', sql`${t.quantity} > 0`),
     check('order_items_price_non_negative', sql`${t.unitPricePesewas} >= 0`)
   ]
-)
+).enableRLS()
 
 export const payments = pgTable(
   'payments',
@@ -224,7 +226,7 @@ export const payments = pgTable(
     isSample: isSample()
   },
   (t) => [index('payments_order_idx').on(t.orderId)]
-)
+).enableRLS()
 
 export const reminders = pgTable(
   'reminders',
@@ -243,7 +245,7 @@ export const reminders = pgTable(
   },
   // One chase maximum: at most one reminder per customer per drop (BR-R5).
   (t) => [unique('reminders_customer_drop_unique').on(t.customerId, t.dropId)]
-)
+).enableRLS()
 
 export const turnedAway = pgTable(
   'turned_away',
@@ -262,7 +264,7 @@ export const turnedAway = pgTable(
     isSample: isSample()
   },
   (t) => [check('turned_away_units_positive', sql`${t.units} > 0`)]
-)
+).enableRLS()
 
 export const orderHistory = pgTable(
   'order_history',
@@ -279,7 +281,7 @@ export const orderHistory = pgTable(
     isSample: isSample()
   },
   (t) => [index('order_history_order_idx').on(t.orderId)]
-)
+).enableRLS()
 
 export const forecastSnapshots = pgTable(
   'forecast_snapshots',
@@ -294,7 +296,7 @@ export const forecastSnapshots = pgTable(
     isSample: isSample()
   },
   (t) => [unique('forecast_snapshots_drop_method_unique').on(t.dropId, t.method)]
-)
+).enableRLS()
 
 // Demo owner gate (spec 8). Not sample data, so no is_sample: a reseed must not log the owner out.
 export const ownerSessions = pgTable('owner_sessions', {
@@ -304,7 +306,7 @@ export const ownerSessions = pgTable('owner_sessions', {
   expiresAt: timestamptz('expires_at').notNull(),
   revokedAt: timestamptz('revoked_at'),
   createdAt: createdAt()
-})
+}).enableRLS()
 
 // Failed owner logins, for the 5 per 15 minutes limit. Only a hash of the IP and the time.
 // Rows older than 24 hours are pruned on each login attempt.
@@ -316,4 +318,4 @@ export const ownerLoginAttempts = pgTable(
     createdAt: createdAt()
   },
   (t) => [index('owner_login_attempts_ip_time_idx').on(t.ipHash, t.createdAt)]
-)
+).enableRLS()

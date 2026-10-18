@@ -125,6 +125,7 @@ A request past that limit is **lapsed**. Until a job writes the `expired` status
 - **BR-O6** Delivery orders need an address and a sample area chosen from the owner's list and add the owner's sample fee. Pickup orders need neither.
 - **BR-O7** A confirmation-mode setting exists: "On payment" (default) or "By owner" (fallback if live payment is not approved in a pilot). P2 to build the "By owner" path; design must not prevent it.
 - **BR-O8** When a session places a new order on a drop, that session's older orders on the same drop in status `requested` without an active hold become `expired` (actor `system`, with an `order_history` row), in the same transaction. Paid or fulfilled orders and orders with an active hold are never touched.
+- **BR-O10** A session may hold at most 3 open requests (status `requested`, not lapsed, any drop). A new order beyond that is refused with 409 `too_many_open_requests` and nothing is stored. Abuse protection for a public demo; the limit is a constant, not an owner setting.
 - **BR-O9** Creating an order (`POST /api/orders`) reserves nothing: it checks the cut-off by server time and does an advisory capacity check (BR-C2), then stores a `requested` order with no hold. Prices, weights and fees are read from the database, never from the client. A client-generated idempotency key makes a repeated submission return the same order instead of creating a second one.
 
 ### 5.4 Simulated payment
@@ -303,7 +304,7 @@ In any raw SQL, put double quotes around table and column names.
 | Charts | Chart.js |
 | Tests | Vitest |
 | PWA | Installable (home screen icon) from C6; minimal offline shell in a later slice |
-| Deploy | Vercel or Netlify from GitHub |
+| Deploy | Vercel (functions in `dub1`, Dublin, next to the Supabase project in eu-west-1) with Supabase PostgreSQL. Runtime uses the transaction pooler (port 6543, `prepare: false`, pool of 1, SSL); migrations and seeding use the session pooler. On Vercel the runtime reads `NUXT_`-prefixed variables (Nuxt only applies those at runtime) |
 | Package manager | pnpm |
 
 Check the official docs for current Nuxt, Tailwind and Drizzle conventions before generating configuration. Do not rely on memory.
@@ -320,12 +321,13 @@ docs/           this spec
 
 Business logic lives in `server/domain` as pure functions with unit tests. Components contain no business rules.
 
-Environment variables (`.env.example` committed, real `.env` never): `DATABASE_URL`, `DEMO_MODE=true`, `DEMO_WHATSAPP_NUMBER`, `OWNER_PASSCODE`, `APP_URL`, `TRUST_PROXY` (default false: the owner login throttle uses the connection address; true on Vercel: it uses the `x-vercel-forwarded-for` header that the platform sets, and ignores any other forwarded header).
+Environment variables (`.env.example` committed, real `.env` never; the full table with deployed values is in the README): `DATABASE_URL`, `MIGRATION_DATABASE_URL` (migrate and seed; falls back to `DATABASE_URL`), `DATABASE_POOL_MODE` (`transaction` forces pooled settings), `DEMO_MODE=true`, `DEMO_WHATSAPP_NUMBER`, `OWNER_PASSCODE`, `APP_URL`, `TRUST_PROXY` (default false: the owner login throttle uses the connection address; true on Vercel: it uses the `x-vercel-forwarded-for` header that the platform sets, and ignores any other forwarded header).
 
 Key endpoints (indicative):
 
 | Endpoint | Purpose |
 |---|---|
+| `GET /api/health` | `{ ok: true, database: true or false }` from a trivial query with a short timeout. No data, no versions, no gate |
 | `GET /api/drops/next` | Next open drop, spaces left |
 | `POST /api/orders` | Create a `requested` order with no hold (BR-O9). Use the customer from the valid session (updating its first name and phone), otherwise create a new customer and a session. Never look up a customer by phone at order time (it would expose their history, BR-L7). A repeated idempotency key returns the existing order id only; with another browser's session it returns 409. **Reorder variant (C7):** `{ reorder: true, dropId, lines, fulfilment, deliveryAreaId?, idempotencyKey, expectedTotalPesewas }` from a valid session only; first name, phone and address are copied on the server from the customer and their last paid order, so the full phone never reaches the browser. `expectedTotalPesewas` is a guard only: never stored, never used as a price; if it differs from the server-computed total the answer is 409 `price_changed` with the new total. Client price fields (`unitPricePesewas`, `totalPesewas`) are rejected. |
 | `GET /api/orders/:id` | Order summary for C4, only for the session that owns the order; otherwise 404 |
@@ -344,7 +346,7 @@ Key endpoints (indicative):
 | `POST /api/owner/settings/buffer` | Buffer setting: careful, balanced or never_sell_out (BR-FC8) |
 | `GET /api/owner/orders`, `POST /api/owner/orders/:id/fulfil`, `/cancel` | O2: filter by drop and status; fulfil only from paid_confirmed (BR-O3); cancel with confirmation, setting refund_due on a paid order (BR-O4); history actor owner |
 
-Security basics: HTTPS only, Zod validation, simple rate limit on order creation (deferred to the deployment checklist), HTML escaping, never log phone numbers or tokens, owner routes behind a passcode session (demo only; a real pilot needs proper owner accounts), seed is a CLI script and not an endpoint.
+Security basics: HTTPS only, Zod validation with a length limit on every string, a 16 KB request body limit on `/api/*` (413), the open-request cap (BR-O10), rate limiting by a Vercel WAF rule rather than in memory (serverless instances share no memory), noindex (robots meta and `X-Robots-Tag` on every response), row level security enabled on every table with no policies (the app connects only from the server as the table owner; the Supabase Data API and anon key are not used), HTML escaping, never log phone numbers or tokens, owner routes behind a passcode session (demo only; a real pilot needs proper owner accounts), seed is a CLI script and not an endpoint.
 
 ## 9. Seed data (`pnpm seed`)
 
