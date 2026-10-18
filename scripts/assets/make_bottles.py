@@ -7,19 +7,20 @@ Needs Python 3 with Pillow and numpy (not part of the app). Writes small transpa
 to public/bottles/: <flavour>-sm.webp for cards and rows, <flavour>-lg.webp for the C1 hero.
 
 How it works:
-1. Cut-out: the bottle is the coloured and darker part of the photo; the background is near-white
-   and grey-neutral. The largest connected shape is kept and its edge softened.
-2. Recolour: the photo's shading is smoothed (so JPEG grain is not amplified), a gentle cylinder
-   shading and soft highlight are added so the bottle reads as round, and each pixel takes the
-   flavour colour's hue and saturation with the flavour colour as its mid-tone. The dark neck ring
-   keeps its own colour.
+1. Cut-out: the photo is a glass bottle of juice lying among sliced fruit of almost the same colour,
+   so colour cannot separate them. The outline is traced by hand instead: the bottle is upright and
+   symmetric, so it is a list of (row, half-width) points around a centre column, measured on the
+   photo. The edge is drawn at 4x and scaled down so it is smooth.
+2. Recolour: the juice takes the flavour colour's hue, and its saturation and brightness are scaled
+   so its typical pixel matches the flavour colour; the photo's own light and shade stay. The white
+   cap and the pale glass highlights keep their own (greyed) colour, so every flavour still reads
+   as juice in a glass bottle.
 """
 
-from collections import deque
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "scripts" / "assets" / "bottle-source.jpg"
@@ -37,6 +38,18 @@ FLAVOURS = {
     "Passionlemon cane": "#B9861A",
 }
 SIZES = {"sm": 240, "lg": 720}  # output heights in pixels (about 2.5x the largest display size)
+ASPECT = 0.37  # output width / height; app/components/FlavourBottle.vue uses the same number
+
+# The traced outline (pixels in the 1333x2000 source): centre column, then (row, half-width) from
+# the top of the cap to the bottom of the glass base. Rows in between are interpolated.
+CENTRE = 667.5
+OUTLINE = [
+    (352, 80), (356, 115), (362, 138), (372, 154), (385, 163), (398, 166), (455, 166),  # cap (domed top)
+    (458, 148), (560, 149),  # neck
+    (620, 159), (670, 174), (720, 189), (770, 201), (820, 210), (900, 226), (1000, 233),  # shoulder
+    (1600, 235), (1630, 218), (1645, 195), (1658, 160), (1662, 100),  # body and base
+]
+CAP_BOTTOM = 457
 
 
 def slug(name: str) -> str:
@@ -81,107 +94,58 @@ def hsv_to_rgb(hsv: np.ndarray) -> np.ndarray:
     return out
 
 
-def largest_component(mask: np.ndarray) -> np.ndarray:
-    """The biggest 4-connected True region (the bottle), found on a 1/4 size copy for speed."""
-    small = mask[::4, ::4]
-    seen = np.zeros_like(small, dtype=bool)
-    best: list[tuple[int, int]] = []
-    rows, cols = small.shape
-    for y in range(rows):
-        for x in range(cols):
-            if small[y, x] and not seen[y, x]:
-                region, queue = [], deque([(y, x)])
-                seen[y, x] = True
-                while queue:
-                    cy, cx = queue.popleft()
-                    region.append((cy, cx))
-                    for ny, nx in ((cy + 1, cx), (cy - 1, cx), (cy, cx + 1), (cy, cx - 1)):
-                        if 0 <= ny < rows and 0 <= nx < cols and small[ny, nx] and not seen[ny, nx]:
-                            seen[ny, nx] = True
-                            queue.append((ny, nx))
-                if len(region) > len(best):
-                    best = region
-    keep_small = np.zeros_like(small, dtype=bool)
-    for y, x in best:
-        keep_small[y, x] = True
-    keep = np.repeat(np.repeat(keep_small, 4, axis=0), 4, axis=1)[: mask.shape[0], : mask.shape[1]]
-    return keep & mask
+def outline_alpha(width: int, height: int) -> np.ndarray:
+    """The traced outline as a soft-edged alpha mask, drawn at 4x and scaled down."""
+    scale = 4
+    rows = np.arange(OUTLINE[0][0], OUTLINE[-1][0] + 1)
+    half = np.interp(rows, [p[0] for p in OUTLINE], [p[1] for p in OUTLINE])
+    left = [((CENTRE - h) * scale, y * scale) for y, h in zip(rows, half)]
+    right = [((CENTRE + h) * scale, y * scale) for y, h in zip(rows, half)]
+    big = Image.new("L", (width * scale, height * scale), 0)
+    ImageDraw.Draw(big).polygon(left + right[::-1], fill=255)
+    small = big.resize((width, height), Image.LANCZOS).filter(ImageFilter.GaussianBlur(0.6))
+    return np.asarray(small, dtype=np.float64) / 255.0
 
 
 def main() -> None:
-    photo = np.asarray(Image.open(SOURCE).convert("RGB"), dtype=np.float64) / 255.0
-    hsv = rgb_to_hsv(photo)
-    # Bottle: clearly coloured, or dark (the neck ring). Background: bright and nearly grey.
-    mask = (hsv[..., 1] > 0.18) | (hsv[..., 2] < 0.45)
-    mask = largest_component(mask)
-    # Fill pinholes, then soften the edge by one or two pixels so it does not look cut with scissors.
-    alpha_img = Image.fromarray((mask * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.MinFilter(5))
-    alpha_img = alpha_img.filter(ImageFilter.GaussianBlur(1.2))
-    alpha = np.asarray(alpha_img, dtype=np.float64) / 255.0
+    source = Image.open(SOURCE).convert("RGB")
+    photo = np.asarray(source, dtype=np.float64) / 255.0
+    alpha = outline_alpha(source.width, source.height)
 
     ys, xs = np.where(alpha > 0.02)
-    pad = 12
+    pad = 6
     top, bottom = max(ys.min() - pad, 0), min(ys.max() + pad, photo.shape[0] - 1)
     left, right = max(xs.min() - pad, 0), min(xs.max() + pad, photo.shape[1] - 1)
-    photo, hsv, alpha = photo[top : bottom + 1, left : right + 1], hsv[top : bottom + 1, left : right + 1], alpha[top : bottom + 1, left : right + 1]
+    photo, alpha = photo[top : bottom + 1, left : right + 1], alpha[top : bottom + 1, left : right + 1]
+    hsv = rgb_to_hsv(photo)
+    rows = np.arange(hsv.shape[0])[:, None] + top
 
-    body = (alpha > 0.9) & (hsv[..., 1] > 0.18)
-    body_v = np.median(hsv[..., 2][body])
+    # The juice: well inside the outline, below the cap, clearly coloured.
+    juice = (alpha > 0.95) & (rows > CAP_BOTTOM + 10) & (hsv[..., 1] > 0.6)
+    juice_s, juice_v = np.median(hsv[..., 1][juice]), np.median(hsv[..., 2][juice])
 
-    # The neck ring: neutral and dark, only in the top fifth (so shadowed edges are not mistaken for it).
-    rows = np.arange(hsv.shape[0])[:, None]
-    ring = (hsv[..., 1] <= 0.18) & (hsv[..., 2] < 0.35) & (rows < hsv.shape[0] * 0.2)
-
-    # Smoothed shading and saturation: keeps the soft light of the photo, drops the grain.
-    def smooth(channel: np.ndarray, radius: float) -> np.ndarray:
-        img = Image.fromarray((np.clip(channel, 0, 1) * 255).round().astype(np.uint8), "L")
-        return np.asarray(img.filter(ImageFilter.GaussianBlur(radius)), dtype=np.float64) / 255
-
-    shade_v = smooth(hsv[..., 2], 16)
-
-    # Cylinder shading: per row, u runs from -1 (left edge) to 1 (right edge) of the bottle.
-    # Edges are measured per row, then smoothed down the bottle so the shading does not ripple.
-    height = alpha.shape[0]
-    lefts, rights = np.full(height, np.nan), np.full(height, np.nan)
-    for y in range(height):
-        xs_row = np.where(alpha[y] > 0.5)[0]
-        if len(xs_row) > 2:
-            lefts[y], rights[y] = xs_row[0], xs_row[-1]
-    window = 41
-    def running_median(values: np.ndarray) -> np.ndarray:
-        out = values.copy()
-        for y in range(height):
-            chunk = values[max(0, y - window // 2) : y + window // 2 + 1]
-            chunk = chunk[~np.isnan(chunk)]
-            if len(chunk):
-                out[y] = np.median(chunk)
-        return out
-    lefts, rights = running_median(lefts), running_median(rights)
-    u = np.zeros(alpha.shape)
-    for y in range(height):
-        if not np.isnan(lefts[y]):
-            mid, half = (lefts[y] + rights[y]) / 2, max((rights[y] - lefts[y]) / 2, 1)
-            u[y] = (np.arange(alpha.shape[1]) - mid) / half
-    u = np.clip(u, -1, 1)
-    form = 0.74 + 0.32 * np.cos(u * np.pi / 2) ** 0.7 + 0.06 * np.exp(-(((u + 0.38) / 0.22) ** 2))
+    # What keeps its own (greyed) colour: the cap, and the pale glass highlights on the body.
+    cap = np.broadcast_to(rows <= CAP_BOTTOM, alpha.shape)  # its shaded side reflects the fruit, so all of it
+    highlight = np.clip((0.55 - hsv[..., 1]) / 0.35, 0, 1) * (hsv[..., 2] > 0.7)
+    keep = np.maximum(cap.astype(np.float64), highlight)
+    grey = np.repeat(hsv[..., 2:3] * 0.97, 3, axis=-1)
 
     OUT.mkdir(parents=True, exist_ok=True)
     for name, colour in FLAVOURS.items():
         target = rgb_to_hsv(hex_to_rgb(colour)[None, None, :])[0, 0]
         new = hsv.copy()
         new[..., 0] = target[0]
-        new[..., 1] = target[1]  # one even saturation: the photo's blotchy patches are not carried over
-        # The flavour colour is the mid-tone; the smoothed photo shading and the cylinder form vary it.
-        new[..., 2] = np.clip(target[2] * np.clip(shade_v / body_v, 0.9, 1.1) * form, 0, 1)
-        rgb = hsv_to_rgb(new)
-        rgb = np.where(ring[..., None], photo, rgb)
-        rgba = np.dstack([rgb, alpha])
-        image = Image.fromarray((rgba * 255).round().astype(np.uint8), "RGBA")
+        new[..., 1] = np.clip(hsv[..., 1] * target[1] / juice_s, 0, 1)
+        new[..., 2] = np.clip(hsv[..., 2] * target[2] / juice_v, 0, 1)
+        rgb = hsv_to_rgb(new) * (1 - keep[..., None]) + grey * keep[..., None]
+        image = Image.fromarray((np.dstack([rgb, alpha]) * 255).round().astype(np.uint8), "RGBA")
         for size, height in SIZES.items():
-            width = round(image.width * height / image.height)
-            resized = image.resize((width, height), Image.LANCZOS)
+            width = round(height * ASPECT)
+            fit = image.resize((round(image.width * height / image.height), height), Image.LANCZOS)
+            canvas = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+            canvas.paste(fit, ((width - fit.width) // 2, 0))
             path = OUT / f"{slug(name)}-{size}.webp"
-            resized.save(path, "WEBP", quality=84, method=6)
+            canvas.save(path, "WEBP", quality=80, method=6)
             print(f"{path.relative_to(ROOT)}  {width}x{height}  {path.stat().st_size / 1024:.1f} KB")
 
 

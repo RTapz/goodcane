@@ -14,10 +14,10 @@ const sizes = {
   md: { disc: 100, height: 124 },
   lg: { disc: 150, height: 196 }
 } as const
-// The bottle images are 1 wide by 3 tall (80x240 small, 239x720 large).
+// The bottle images are 0.37 wide per 1 tall (89x240 small, 266x720 large; ASPECT in make_bottles.py).
 const box = computed(() => sizes[props.size])
 const bottleHeight = computed(() => Math.round(box.value.height - box.value.disc * 0.08))
-const bottleWidth = computed(() => Math.round(bottleHeight.value / 3))
+const bottleWidth = computed(() => Math.round(bottleHeight.value * 0.37))
 const slug = computed(() => props.name.toLowerCase().replace(/\s+/g, '-'))
 </script>
 
@@ -35,7 +35,7 @@ const slug = computed(() => props.name.toLowerCase().replace(/\s+/g, '-'))
     />
     <img
       :src="`/bottles/${slug}-sm.webp`"
-      :srcset="`/bottles/${slug}-sm.webp 80w, /bottles/${slug}-lg.webp 239w`"
+      :srcset="`/bottles/${slug}-sm.webp 89w, /bottles/${slug}-lg.webp 266w`"
       :sizes="`${bottleWidth}px`"
       :width="bottleWidth"
       :height="bottleHeight"
