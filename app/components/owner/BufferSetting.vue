@@ -38,7 +38,7 @@ const options: { value: Setting; label: string; explain: string }[] = [
     <p class="mt-2 text-stone-900">
       Buffer: <strong>{{ props.units }} units</strong>
       <span v-if="props.lowConfidence" class="ml-1 rounded-full bg-cream-300 px-2.5 py-0.5 text-sm font-semibold text-cream-950">
-        Low confidence: sample default, fewer than 3 finished drops
+        Low confidence: default value, fewer than 3 finished drops
       </span>
     </p>
   </fieldset>

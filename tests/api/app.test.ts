@@ -314,6 +314,16 @@ describe('returning customer: /api/me, reminders and the C7 two-step reorder', (
   })
 })
 
+describe('Demo data disclosure (spec constraint 8)', () => {
+  it('every page renders the Demo data button, including the owner sign-in', async () => {
+    for (const path of ['/', '/order', '/owner/login', '/link-invalid']) {
+      const html = await $fetch<string>(path)
+      expect(html, path).toMatch(/>\s*Demo data\s*</)
+      expect(html, path).not.toContain('Sample price')
+    }
+  })
+})
+
 // Last in the file: the throttle check leaves this IP locked out of owner login for 15 minutes.
 describe('owner gate over HTTP (spec 8)', () => {
   const ownerRoutes: [string, string][] = [

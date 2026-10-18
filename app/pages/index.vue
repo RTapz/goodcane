@@ -68,7 +68,6 @@ onBeforeUnmount(clearNotice)
       </section>
 
       <TastePicker v-if="drop" />
-      <SampleReviews />
       <ClaimsNote />
       <PickupInfo :start="data.pickupWindow.start" :end="data.pickupWindow.end" />
 

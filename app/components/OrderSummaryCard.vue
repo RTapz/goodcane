@@ -16,7 +16,7 @@ const props = defineProps<{ order: OrderSummary }>()
         <span>{{ formatPesewas(line.quantity * line.unitPricePesewas) }}</span>
       </li>
       <li v-if="props.order.feePesewas > 0" class="flex justify-between gap-2 text-stone-700">
-        <span>Delivery fee (sample)</span>
+        <span>Delivery fee</span>
         <span>{{ formatPesewas(props.order.feePesewas) }}</span>
       </li>
     </ul>

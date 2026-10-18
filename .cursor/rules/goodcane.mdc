@@ -12,14 +12,14 @@ alwaysApply: true
 - Build in small vertical slices (one finished journey step at a time). Commit after each slice with a clear message, for example `feat(c7): same again screen`.
 
 ## Hard constraints (never break)
-- Sample data only. Label every placeholder "Sample" or "Demo". Never invent real customers, sales, stock, prices, delivery areas or payment details.
+- Sample data only. The disclosure is the Demo data button on every page; do not scatter "Sample" or "Demo" labels (spec constraint 1 lists the kept exceptions). Never invent real customers, sales, stock, prices, delivery areas or payment details.
 - No live payments. No payment provider SDKs, keys or real integration code. Payment is the simulation in the spec.
 - Never send real messages. No WhatsApp, SMS or email sending code. Reminders go to the outbox; the owner action only opens a prefilled chat link.
 - In demo mode every `wa.me` link must use the `DEMO_WHATSAPP_NUMBER` environment variable. Never hard-code any real phone number, including GoodCane's.
 - Reminders are opt-in, unticked by default, with an equal "None" option. Cancel and opt-out are always one tap away.
 - Collect only first name, phone, order history, optional reminder choice, delivery address (delivery only) and consent events. Do not add analytics, trackers, email or any other personal data.
 - No AI features. No health or certification claims in copy.
-- Keep the DEMO banner on every page. Use a plain text wordmark; do not copy GoodCane's logo or artwork.
+- Keep the Demo data button on every page. Use a plain text wordmark; do not copy GoodCane's logo or artwork.
 
 ## Domain rules to respect (details in the spec, section 5)
 - cut-off = drop time minus lead time. Capacity counts paid and confirmed units plus active holds. Requests use no capacity.
@@ -48,7 +48,7 @@ alwaysApply: true
 
 ## Testing and definition of done
 - Use the fixtures in the spec for forecast, cut-off, capacity, lifecycle, payment idempotency, reminder queue and retention tests.
-- A feature is done only when: it works at 360px width, handles loading, empty and error states, has tests for its business rules, matches the spec, and keeps the DEMO labelling. Run typecheck and tests before saying it is finished.
+- A feature is done only when: it works at 360px width, handles loading, empty and error states, has tests for its business rules, matches the spec, and keeps the Demo data button. Run typecheck and tests before saying it is finished.
 
 ## Learning boundaries (Ryan is learning from this build)
 - Do NOT write the implementation of `server/domain/forecast/*` (weighted average, pace projection, MAPE, WAPE, bias, naive benchmark) or the seed script's weighted day-picking function unless Ryan explicitly asks you to in that message. Instead explain the concept in plain language, outline the steps, write tests from the spec fixtures if asked, and review Ryan's code.

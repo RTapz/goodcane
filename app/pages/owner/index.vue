@@ -5,7 +5,7 @@ import type { DropDemand } from '~~/server/services/owner/demand'
 import type { PilotMetrics } from '~~/server/services/owner/metrics'
 
 definePageMeta({ middleware: 'owner' })
-useHead({ title: 'This drop (owner) | GoodCane Drops (Demo)' })
+useHead({ title: 'This drop (owner) | GoodCane Drops' })
 
 interface DropOption {
   id: string
@@ -133,7 +133,7 @@ const weightsText = computed(() => (demand.value?.unitWeights ?? []).map((w) => 
           :spaces-left="demand.units.spacesLeft"
         />
         <p class="mt-2 text-sm text-stone-700">
-          Likely uses a {{ formatPercent(demand.units.conversion.rate, 0) }} request-to-paid rate{{ demand.units.conversion.fallback ? ' (sample default: fewer than 3 finished drops)' : ' from finished drops' }}.
+          Likely uses a {{ formatPercent(demand.units.conversion.rate, 0) }} request-to-paid rate{{ demand.units.conversion.fallback ? ' (default value: fewer than 3 finished drops)' : ' from finished drops' }}.
         </p>
         <p class="mt-2" :class="demand.units.turnedAway > 0 ? 'font-semibold text-red-800' : 'text-stone-900'">
           Turned away: {{ demand.units.turnedAway }} units{{ demand.units.turnedAway > 0 ? ' (wanted but the drop was full)' : '' }}
@@ -147,7 +147,7 @@ const weightsText = computed(() => (demand.value?.unitWeights ?? []).map((w) => 
           about {{ demand.forecast.range.low }} to {{ demand.forecast.range.high }} units
         </p>
         <p v-if="demand.forecast.range" class="text-sm text-stone-700">
-          {{ demand.forecast.range.fallback ? 'Range is a sample plus or minus 10%: no scored drops yet.' : `Range from the recent error of ${plural(demand.forecast.errorBandDrops, 'scored drop', 'scored drops')}.` }}
+          {{ demand.forecast.range.fallback ? 'Range is a default plus or minus 10%: no scored drops yet.' : `Range from the recent error of ${plural(demand.forecast.errorBandDrops, 'scored drop', 'scored drops')}.` }}
         </p>
         <p v-if="demand.forecast.closedDrops === 0" class="mt-1">No finished drops yet, so there is nothing to project from.</p>
         <dl class="mt-3 grid grid-cols-2 gap-2">

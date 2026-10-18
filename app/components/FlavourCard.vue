@@ -29,7 +29,6 @@ const tasteLabel = { sweet: 'Sweet', spicy: 'Spicy', sour: 'Sour' }
       <li v-for="item in props.items" :key="item.id" class="space-y-1.5">
         <p class="text-center text-sm">
           <span class="font-semibold text-stone-900">{{ item.size }}</span>{{ ' ' }}<span class="text-stone-700">{{ formatPesewas(item.pricePesewas) }}</span>
-          <span class="block text-xs text-stone-600">Sample price</span>
         </p>
         <div class="flex justify-center">
           <QuantityStepper

@@ -103,7 +103,7 @@ async function simulate(outcome: 'success' | 'failed' | 'no_response') {
       phase.value = 'not_confirmed'
     }
   } catch {
-    attemptMessage.value = "We couldn't reach the demo payment service. Your spaces are still held. Try again."
+    attemptMessage.value = "We couldn't reach the payment service. Your spaces are still held. Try again."
   } finally {
     pending.value = false
   }
@@ -112,7 +112,7 @@ async function simulate(outcome: 'success' | 'failed' | 'no_response') {
 
 <template>
   <div class="space-y-4 pb-8">
-    <h1 class="text-2xl font-extrabold text-stone-900">Demo payment, no real money</h1>
+    <h1 class="text-2xl font-extrabold text-stone-900">Payment</h1>
 
     <div v-if="phase === 'not_found'" class="gc-card p-4">
       <h2 class="text-xl font-bold text-stone-900">We can't find this order on this device</h2>

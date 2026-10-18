@@ -57,13 +57,13 @@ async function makeNewLink() {
     <template v-else-if="order && paid">
       <header class="rounded-3xl bg-gradient-to-br from-cane-700 to-cane-800 p-5 text-white shadow-[0_10px_28px_-12px_rgb(16_40_24/0.35)]">
         <h1 class="text-2xl font-extrabold">Paid and confirmed</h1>
-        <p class="mt-1">Your bottles are reserved for {{ formatDropDate(order.drop.dropAt) }}. Demo: no real money was taken.</p>
+        <p class="mt-1">Your bottles are reserved for {{ formatDropDate(order.drop.dropAt) }}.</p>
       </header>
 
       <section class="gc-card p-4" aria-labelledby="handover-heading">
         <h2 id="handover-heading" class="font-bold text-stone-900">{{ order.fulfilment === 'delivery' ? 'Delivery' : 'Pickup' }}</h2>
         <p v-if="order.fulfilment === 'delivery'" class="mt-1 text-stone-800">{{ order.address }}, {{ order.area }}</p>
-        <p v-else class="mt-1 text-stone-800">Sample location, Accra (Demo), on {{ formatDropDate(order.drop.dropAt) }}</p>
+        <p v-else class="mt-1 text-stone-800">Pickup point, Accra, on {{ formatDropDate(order.drop.dropAt) }}</p>
         <p class="mt-1 text-stone-800">{{ order.firstName }}, {{ order.phoneMasked }}</p>
       </section>
 

@@ -58,14 +58,14 @@ Priority tags used throughout:
 
 ## 3. Hard constraints (never violate)
 
-1. **Sample data only.** No real customers, sales, stock, prices, delivery areas or payment integrations. Everything displayed that is a placeholder must be labelled "Sample" or "Demo".
+1. **Sample data only.** No real customers, sales, stock, prices, delivery areas or payment integrations. The disclosure is one place, the Demo data button (rule 8), not a label on each placeholder (decision 18 Oct 2026). Exceptions kept on purpose: the payment screens say "No money is taken" (BR-P1), and the owner metrics keep the honesty note (5.9).
 2. **No live payments.** Payment is a simulation. No payment provider code, keys or SDKs.
 3. **No real messages.** The app never sends WhatsApp, SMS or email. Reminders go to an outbox log; the owner "Send" action only opens a prefilled chat link. In demo mode every `wa.me` link points to `DEMO_WHATSAPP_NUMBER` (an environment variable holding the developer's own number), never to a sample customer's number or GoodCane's real number.
 4. **Opt-in reminders, cancellable at any time.** Unticked by default. Opt-out is one tap.
 5. **Collect only necessary data.** See section 5.8.
-6. **Do not use GoodCane's real phone number, logo or artwork** anywhere. Use a plain text wordmark and keep a DEMO banner on every page.
+6. **Do not use GoodCane's real phone number, logo or artwork** anywhere. Use a plain text wordmark and keep the Demo data button on every page.
 7. **Do not display health claims or certification claims** (for example regulator approval) in the demo. Claims such as "no preservatives, no added sugar" may appear only as "GoodCane says", with a note that they are to be confirmed.
-8. **Persistent banner on every page:** "DEMO: sample data, no real payments or messages".
+8. **Disclosure on every page:** a sticky **Demo data** button on every page that opens a dialog saying everything is demo data (made-up drinks, prices, locations and customers; no real orders, payments or messages; a prototype, not GoodCane's shop).
 
 ## 4. Glossary
 
@@ -128,7 +128,7 @@ A request past that limit is **lapsed**. Until a job writes the `expired` status
 - **BR-O9** Creating an order (`POST /api/orders`) reserves nothing: it checks the cut-off by server time and does an advisory capacity check (BR-C2), then stores a `requested` order with no hold. Prices, weights and fees are read from the database, never from the client. A client-generated idempotency key makes a repeated submission return the same order instead of creating a second one.
 
 ### 5.4 Simulated payment
-- **BR-P1** The payment screen is labelled "Demo payment, no real money" and offers three outcomes: success, failed, no response.
+- **BR-P1** The payment screen says "No money is taken" and offers three outcomes: success, failed, no response.
 - **BR-P2** The buttons call `POST /api/payments/simulate`, which behaves like a provider callback.
 - **BR-P3** Each payment attempt has a unique reference. Processing is idempotent: a repeated reference returns the stored result and changes nothing. The stored result is `payments.result` (`confirmed`, `not_confirmed` or `hold_kept`) with `payments.reason`; the reference is made by the client for each attempt. A reference already used for another order or session returns a conflict and reveals nothing.
 - **BR-P4** Failed or no response keep the hold until it expires and allow retry.
@@ -216,16 +216,16 @@ Implemented as pure, tested functions in `server/domain/forecast`.
 
 ## 6. Screens
 
-A persistent DEMO banner appears on all pages. Mobile first: single column at 360px width, primary actions anchored at the bottom, tap targets at least 44px.
+The Demo data button (constraint 8) appears on all pages. Mobile first: single column at 360px width, primary actions anchored at the bottom, tap targets at least 44px.
 
 ### 6.1 Customer screens
 
 | # | Screen | Contents | Priority |
 |---|---|---|---|
-| C1 | **Landing: "This drop"** | Next drop date, cut-off countdown, taste picker (Sweet, Spicy, Sour), sample reviews labelled "Sample review", "GoodCane says" claims note, hours and pickup placeholder. Recognised returning customers see "Welcome back, {first name}. Same again?" | P0 |
+| C1 | **Landing: "This drop"** | Next drop date, cut-off countdown, taste picker (Sweet, Spicy, Sour), "GoodCane says" claims note, hours and pickup placeholder. Recognised returning customers see "Welcome back, {first name}. Same again?" | P0 |
 | C2 | **Build order** | Flavour, size, quantity stepper, spaces left, sticky total bar. Hide sold-out items; never dead-end | P0 |
 | C3 | **Your details** | First name, phone, Pickup or Delivery toggle (delivery reveals address, sample area, sample fee) | P0 |
-| C4 | **Review and pay** | Summary, hold countdown, demo payment notice | P0 |
+| C4 | **Review and pay** | Summary, hold countdown, "No money is taken" notice | P0 |
 | C5 | **Simulated payment** | Success, failed, no response. Retry keeps the hold | P0 |
 | C6 | **Batch card (confirmation)** | "Paid and confirmed", pickup or delivery details, private link with Copy, Send to my WhatsApp, Add to home screen, then the reminder opt-in | P0 |
 | C7 | **Same again?** | See 6.3. The flawless screen. Returning customers skip C3 and C4: Pay places the order with their saved details (server-side) and goes straight to C5 | P0 |
@@ -260,10 +260,10 @@ A persistent DEMO banner appears on all pages. Mobile first: single column at 36
 ### 6.4 Menu and brand (sample)
 - Mirrors the public menu as observed (to be confirmed): taste groups Sweet (raw cane, passionfruit cane), Spicy (ginger-lemon cane), Sour (lemon-mint cane, lemon-charcoal cane), and "Drop special" tag for tigernut-coconut cane, cucumber cane and passionlemon cane.
 - Main flow sizes: 330ml and 500ml. Group sizes (2L, 4L) as a P2 "Group order" option.
-- Prices are samples, shown with "Sample price". Currency format GH₵ with integer pesewas in the database.
+- Prices are samples (disclosed by the Demo data button, constraint 8). Currency format GH₵ with integer pesewas in the database.
 - Visual direction: green and cream, friendly and bold, text wordmark only. British English copy. No em dashes.
 - Visual style (approved 18 Oct 2026, inspired by a grocery-app reference that is not committed): a soft mint-to-cream page background; white cards with large rounded corners (about 20px) and soft shadows; pill-shaped buttons and quantity steppers; round tiles for the taste picker; flavour cards in a two-column grid where it fits; choices (pickup or delivery, area, payment outcome) as radio cards. Flavours are shown as CSS and SVG tiles in each flavour's accent colour, never photos. No new UI elements: the refresh restyles what exists and adds no search, tab bar, promos, discounts, ratings or other features the app does not have. System font stack only. Text contrast stays at WCAG AA and accents at least 3:1.
-- Sample reviews are invented, labelled, and use placeholder names. Never copy real customer reviews.
+- No reviews are shown: invented reviews without a label would read as real ones (removed 18 Oct 2026). Never copy real customer reviews.
 
 ## 7. Data model (conceptual)
 

@@ -55,7 +55,7 @@ async function addToHomeScreen() {
         color="neutral"
         variant="outline"
         class="min-h-12"
-        label="Send to my WhatsApp (demo number)"
+        label="Send to my WhatsApp"
       />
       <UButton
         v-if="!installed"
@@ -71,9 +71,6 @@ async function addToHomeScreen() {
     <p v-if="copied" role="status" class="text-sm font-semibold text-cane-800">Link copied.</p>
     <p v-if="showInstallHelp" role="status" class="rounded-2xl bg-cream-200 p-3 text-sm text-stone-900">
       In your browser menu, choose <strong>Add to Home Screen</strong> (on iPhone: the Share button, then Add to Home Screen).
-    </p>
-    <p v-if="props.whatsappUrl" class="text-sm text-stone-700">
-      Demo: WhatsApp opens a chat with the developer's own number, never GoodCane's or a customer's.
     </p>
   </section>
 </template>

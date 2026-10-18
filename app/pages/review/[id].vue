@@ -77,7 +77,7 @@ async function rebuild() {
             <span>{{ formatPesewas(line.quantity * line.unitPricePesewas) }}</span>
           </li>
           <li v-if="order.feePesewas > 0" class="flex justify-between gap-2 text-stone-700">
-            <span>Delivery fee (sample)</span>
+            <span>Delivery fee</span>
             <span>{{ formatPesewas(order.feePesewas) }}</span>
           </li>
         </ul>
@@ -90,7 +90,7 @@ async function rebuild() {
       <section class="gc-card p-4" aria-labelledby="details-heading">
         <h2 id="details-heading" class="font-bold text-stone-900">{{ order.fulfilment === 'delivery' ? 'Delivery' : 'Pickup' }}</h2>
         <p v-if="order.fulfilment === 'delivery'" class="mt-1 text-stone-800">{{ order.address }}, {{ order.area }}</p>
-        <p v-else class="mt-1 text-stone-800">Sample location, Accra (Demo), on drop day</p>
+        <p v-else class="mt-1 text-stone-800">Pickup point, Accra, on drop day</p>
         <p class="mt-1 text-stone-800">{{ order.firstName }}, {{ order.phoneMasked }}</p>
         <NuxtLink to="/details" class="mt-1 inline-flex min-h-11 items-center font-semibold text-cane-700 underline">Change details</NuxtLink>
       </section>
@@ -102,7 +102,7 @@ async function rebuild() {
 
       <template v-else-if="!inactive && !order.drop.closed">
         <section class="space-y-1 rounded-2xl bg-cream-200 p-4" aria-label="About payment">
-          <p class="font-bold text-stone-900">Demo payment: no real money is taken</p>
+          <p class="font-bold text-stone-900">No money is taken</p>
           <p class="text-stone-800">Spaces are held for {{ order.holdMinutes }} minutes once you tap Pay.</p>
           <p class="text-stone-800" aria-live="polite">
             {{ spacesLeft === null ? '' : `${plural(spacesLeft, 'space', 'spaces')} left in this drop right now. Your order needs ${units}.` }}
@@ -112,7 +112,7 @@ async function rebuild() {
         <StickyActionBar>
           <div>
             <p class="font-bold text-stone-900">{{ formatPesewas(order.totalPesewas) }}</p>
-            <p class="text-sm text-stone-700">Demo payment</p>
+            <p class="text-sm text-stone-700">No money is taken</p>
           </div>
           <UButton :to="`/pay/${order.id}`" size="xl" class="min-h-12 px-8" label="Pay" />
         </StickyActionBar>

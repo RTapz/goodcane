@@ -42,10 +42,10 @@ const sizeLabel: Record<string, string> = { '330ml': '330ml', '500ml': '500ml', 
     </ul>
     <p class="mt-1 text-sm text-stone-700">
       {{ formatShortDate(props.order.dropAt) }} drop, {{ props.order.fulfilment === 'delivery' ? `delivery to ${props.order.area}` : 'pickup' }},
-      {{ formatPesewas(props.order.totalPesewas) }}{{ props.order.isSample ? ', Sample' : '' }}
+      {{ formatPesewas(props.order.totalPesewas) }}
     </p>
     <p v-if="props.order.refundDue" class="mt-2 rounded-xl bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-900">
-      Refund due (demo: no real money moves)
+      Refund due
     </p>
     <p v-if="props.order.unconfirmedPaymentRefundDue" class="mt-2 rounded-xl bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-900">
       Payment received, not confirmed, refund due

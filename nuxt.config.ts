@@ -32,7 +32,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: 'en-GB' },
-      title: 'GoodCane Drops (Demo)',
+      title: 'GoodCane Drops',
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { name: 'theme-color', content: '#1f5c2f' }

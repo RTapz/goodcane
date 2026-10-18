@@ -229,7 +229,7 @@ async function submit() {
                   />
                   <span class="font-semibold text-stone-900">{{ option.name }}</span>
                 </span>
-                <span class="text-sm text-stone-700">{{ formatPesewas(option.feePesewas) }} sample fee</span>
+                <span class="text-sm text-stone-700">{{ formatPesewas(option.feePesewas) }} fee</span>
               </label>
             </div>
             <p v-if="errors.deliveryAreaId" id="area-error" class="mt-1 text-sm font-semibold text-red-700">
@@ -238,7 +238,7 @@ async function submit() {
           </fieldset>
         </template>
         <p v-else class="rounded-2xl bg-white p-3 text-sm text-stone-700">
-          Pickup at the sample location, Accra (Demo), on drop day.
+          Pickup at the pickup point, Accra, on drop day.
         </p>
 
         <p v-if="submitError" role="alert" class="rounded-2xl border border-red-300 bg-white p-3 font-semibold text-stone-900">
@@ -249,7 +249,7 @@ async function submit() {
       <StickyActionBar>
         <div>
           <p class="font-bold text-stone-900">{{ formatPesewas(total) }}</p>
-          <p class="text-sm text-stone-700">{{ area ? `Includes ${formatPesewas(area.feePesewas)} sample fee` : 'No delivery fee' }}</p>
+          <p class="text-sm text-stone-700">{{ area ? `Includes ${formatPesewas(area.feePesewas)} delivery fee` : 'No delivery fee' }}</p>
         </div>
         <UButton
           type="submit"

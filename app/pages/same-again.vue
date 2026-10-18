@@ -250,7 +250,7 @@ async function pay(expectedTotalPesewas = total.value) {
           Delivery to {{ last.area }}
           <template v-if="feeChanged">(fee was {{ formatPesewas(last.feePesewas) }}, now {{ formatPesewas(feePesewas) }})</template>
         </p>
-        <p v-else class="mt-1 text-sm text-stone-800">Pickup, sample location, Accra (Demo)</p>
+        <p v-else class="mt-1 text-sm text-stone-800">Pickup, pickup point, Accra</p>
       </section>
 
       <div v-if="areaGone" role="status" class="rounded-2xl border border-amber-400 bg-white p-3">
@@ -283,7 +283,7 @@ async function pay(expectedTotalPesewas = total.value) {
       <StickyActionBar>
         <div>
           <p class="font-bold text-stone-900">{{ formatPesewas(total) }}</p>
-          <p class="text-sm text-stone-700">Demo payment, no real money</p>
+          <p class="text-sm text-stone-700">No money is taken</p>
         </div>
         <UButton size="xl" class="min-h-12 px-8" :disabled="!canPay || paying" :loading="paying" label="Pay" @click="pay()" />
       </StickyActionBar>

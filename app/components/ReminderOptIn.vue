@@ -76,7 +76,7 @@ function stop() {
     <template v-if="state === 'opted_in'">
       <p class="text-stone-800">
         Reminders on: {{ channelLabel(me.reminders.channel) }}, {{ frequencyLabel(me.reminders.frequency) }}.
-        GoodCane sends them by hand; this demo never sends anything.
+        GoodCane sends them by hand.
       </p>
       <UButton
         color="neutral"

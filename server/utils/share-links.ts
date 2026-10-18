@@ -5,6 +5,6 @@ import { privateLinkUrl, whatsappShareUrl } from '../domain/identity/share'
 export function shareLinksFor(rawToken: string) {
   const config = useRuntimeConfig()
   const privateLink = privateLinkUrl(config.public.appUrl, rawToken)
-  const whatsappUrl = whatsappShareUrl(config.demoWhatsappNumber, `My GoodCane Drops link (demo): ${privateLink}`)
+  const whatsappUrl = whatsappShareUrl(config.demoWhatsappNumber, `My GoodCane Drops link: ${privateLink}`)
   return { privateLink, whatsappUrl }
 }

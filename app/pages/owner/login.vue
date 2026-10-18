@@ -2,7 +2,7 @@
 // Demo owner gate (spec 8). One passcode; a live service would use real owner accounts.
 import type { FetchError } from 'ofetch'
 
-useHead({ title: 'Owner sign-in | GoodCane Drops (Demo)' })
+useHead({ title: 'Owner sign-in | GoodCane Drops' })
 
 const passcode = ref('')
 const error = ref('')
@@ -52,6 +52,5 @@ async function submit() {
       </FormField>
       <UButton type="submit" size="xl" class="min-h-12 w-full justify-center" label="Open the owner screens" :loading="submitting" />
     </form>
-    <p class="mt-3 text-sm text-stone-700">Demo gate only. A live service would use real owner accounts.</p>
   </div>
 </template>

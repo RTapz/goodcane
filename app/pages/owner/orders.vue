@@ -3,7 +3,7 @@
 import type { OwnerOrderView } from '~~/server/services/owner/orders'
 
 definePageMeta({ middleware: 'owner' })
-useHead({ title: 'Orders (owner) | GoodCane Drops (Demo)' })
+useHead({ title: 'Orders (owner) | GoodCane Drops' })
 
 const { data: dropList } = await useFetch<{ defaultDropId: string | null; drops: { id: string; dropAt: string; closed: boolean; isSample: boolean }[] }>(
   '/api/owner/drops',
@@ -94,7 +94,7 @@ async function act(order: OwnerOrderView, action: 'fulfil' | 'cancel') {
       <template #body>
         <p class="text-stone-900">
           {{ toCancel.firstName ?? 'This customer' }}'s order will be cancelled and its units freed for others.
-          <template v-if="toCancel.status === 'paid_confirmed'">It was paid, so <strong>refund due</strong> will be set (demo: no real money moves).</template>
+          <template v-if="toCancel.status === 'paid_confirmed'">It was paid, so <strong>refund due</strong> will be set.</template>
         </p>
         <div class="mt-3 flex flex-wrap gap-2">
           <UButton class="min-h-11" color="error" label="Yes, cancel the order" :loading="busyId === toCancel.id" @click="act(toCancel!, 'cancel')" />

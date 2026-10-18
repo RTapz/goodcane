@@ -1,6 +1,6 @@
 <template>
   <div class="gc-page min-h-dvh text-stone-900">
-    <DemoBanner />
+    <DemoDataButton />
     <header class="mx-auto w-full max-w-md px-4 py-3">
       <AppWordmark />
     </header>

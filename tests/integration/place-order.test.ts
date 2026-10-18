@@ -107,7 +107,7 @@ describe('placeOrder (BR-O9)', () => {
     )
     if (result.kind !== 'created') throw new Error(result.kind)
     const [order] = await db.select().from(orders).where(eq(orders.id, result.orderId))
-    expect(order).toMatchObject({ fulfilment: 'delivery', area: 'Sample area B', address: 'Sample address 12', feePesewas: 1500, totalPesewas: 13000 })
+    expect(order).toMatchObject({ fulfilment: 'delivery', area: 'Area B', address: 'Sample address 12', feePesewas: 1500, totalPesewas: 13000 })
   })
 
   it('(b) the same idempotency key twice gives one order', async () => {
