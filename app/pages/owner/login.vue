@@ -36,7 +36,7 @@ async function submit() {
 <template>
   <div>
     <h1 class="text-2xl font-bold">Owner screens</h1>
-    <form class="mt-4 space-y-4 rounded-lg border border-stone-300 bg-white p-4" novalidate @submit.prevent="submit">
+    <form class="mt-4 space-y-4 gc-card p-4" novalidate @submit.prevent="submit">
       <FormField id="owner-passcode" label="Passcode" :error="error">
         <template #default="{ invalid, describedBy }">
           <input
@@ -44,7 +44,7 @@ async function submit() {
             v-model="passcode"
             type="password"
             autocomplete="current-password"
-            class="min-h-11 w-full rounded-md border border-stone-400 px-3"
+            class="min-h-11 w-full rounded-xl border border-stone-400 px-3"
             :aria-invalid="invalid"
             :aria-describedby="describedBy"
           >

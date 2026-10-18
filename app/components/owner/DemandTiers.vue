@@ -9,7 +9,7 @@ const width = (units: number) => `${Math.min(100, (units / Math.max(1, props.cap
 
 <template>
   <div>
-    <div class="flex h-8 w-full overflow-hidden rounded-md border border-stone-400 bg-white" aria-hidden="true">
+    <div class="flex h-8 w-full overflow-hidden rounded-full border border-stone-400 bg-white" aria-hidden="true">
       <div class="h-full bg-cane-700" :style="{ width: width(props.paid) }" />
       <div class="tier-likely h-full border-l-2 border-white" :style="{ width: width(props.likely) }" />
     </div>

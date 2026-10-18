@@ -15,7 +15,7 @@ const biasText = computed(() => {
 </script>
 
 <template>
-  <section aria-labelledby="pilot-metrics" class="rounded-lg border border-stone-300 bg-white p-4">
+  <section aria-labelledby="pilot-metrics" class="gc-card p-4">
     <h2 id="pilot-metrics" class="text-lg font-bold">Pilot metrics <span class="text-sm font-normal text-stone-700">(Sample)</span></h2>
     <dl class="mt-3 space-y-3">
       <div>
@@ -63,7 +63,7 @@ const biasText = computed(() => {
         </dd>
       </div>
     </dl>
-    <p class="mt-3 rounded bg-cream-200 p-2 text-sm text-stone-900">
+    <p class="mt-3 rounded-xl bg-cream-200 p-3 text-sm text-stone-900">
       Honesty note: this demo forecast learns from seeded sample data, so it shows the method works, not how accurate it would be for GoodCane.
     </p>
   </section>

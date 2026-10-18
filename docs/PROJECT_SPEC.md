@@ -262,6 +262,7 @@ A persistent DEMO banner appears on all pages. Mobile first: single column at 36
 - Main flow sizes: 330ml and 500ml. Group sizes (2L, 4L) as a P2 "Group order" option.
 - Prices are samples, shown with "Sample price". Currency format GH₵ with integer pesewas in the database.
 - Visual direction: green and cream, friendly and bold, text wordmark only. British English copy. No em dashes.
+- Visual style (approved 18 Oct 2026, inspired by a grocery-app reference that is not committed): a soft mint-to-cream page background; white cards with large rounded corners (about 20px) and soft shadows; pill-shaped buttons and quantity steppers; round tiles for the taste picker; flavour cards in a two-column grid where it fits; choices (pickup or delivery, area, payment outcome) as radio cards. Flavours are shown as CSS and SVG tiles in each flavour's accent colour, never photos. No new UI elements: the refresh restyles what exists and adds no search, tab bar, promos, discounts, ratings or other features the app does not have. System font stack only. Text contrast stays at WCAG AA and accents at least 3:1.
 - Sample reviews are invented, labelled, and use placeholder names. Never copy real customer reviews.
 
 ## 7. Data model (conceptual)

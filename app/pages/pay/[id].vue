@@ -114,7 +114,7 @@ async function simulate(outcome: 'success' | 'failed' | 'no_response') {
   <div class="space-y-4 pb-8">
     <h1 class="text-2xl font-extrabold text-stone-900">Demo payment, no real money</h1>
 
-    <div v-if="phase === 'not_found'" class="rounded-lg bg-white p-4 shadow-sm">
+    <div v-if="phase === 'not_found'" class="gc-card p-4">
       <h2 class="text-xl font-bold text-stone-900">We can't find this order on this device</h2>
       <p class="mt-1 text-stone-700">Orders can only be paid on the phone or browser that placed them.</p>
       <UButton to="/" class="mt-3 min-h-11" label="Back to this drop" />
@@ -125,7 +125,7 @@ async function simulate(outcome: 'success' | 'failed' | 'no_response') {
 
       <StateLoading v-if="phase === 'starting'" />
 
-      <section v-else-if="phase === 'holding' && hold" class="space-y-3 rounded-lg bg-cream-200 p-4" aria-label="Payment">
+      <section v-else-if="phase === 'holding' && hold" class="gc-card space-y-3 p-4" aria-label="Payment">
         <HoldCountdown :hold-expires-at="hold.holdExpiresAt" :server-now="hold.serverNow" @expired="phase = 'expired'" />
         <p class="text-stone-800">
           This is a simulation. Choose what the payment provider would answer. No money is taken.
@@ -153,12 +153,12 @@ async function simulate(outcome: 'success' | 'failed' | 'no_response') {
             @click="simulate('no_response')"
           />
         </div>
-        <p v-if="attemptMessage" role="alert" class="rounded-lg border border-amber-400 bg-white p-3 font-semibold text-stone-900">
+        <p v-if="attemptMessage" role="alert" class="rounded-2xl border border-amber-400 bg-white p-3 font-semibold text-stone-900">
           {{ attemptMessage }}
         </p>
       </section>
 
-      <section v-else-if="phase === 'expired'" role="status" class="space-y-3 rounded-lg bg-white p-4 shadow-sm">
+      <section v-else-if="phase === 'expired'" role="status" class="space-y-3 gc-card p-4">
         <h2 class="text-xl font-bold text-stone-900">Your hold has expired</h2>
         <p class="text-stone-700">Your spaces were released. You can check if they are still free, or change your order.</p>
         <div class="grid gap-2">
@@ -167,7 +167,7 @@ async function simulate(outcome: 'success' | 'failed' | 'no_response') {
         </div>
       </section>
 
-      <section v-else-if="phase === 'no_space'" role="status" class="space-y-3 rounded-lg bg-white p-4 shadow-sm">
+      <section v-else-if="phase === 'no_space'" role="status" class="space-y-3 gc-card p-4">
         <h2 class="text-xl font-bold text-stone-900">Not enough space left</h2>
         <p class="text-stone-700">
           Only {{ plural(spacesLeft ?? 0, 'space is', 'spaces are') }} left in this drop, so nothing has been held.
@@ -179,7 +179,7 @@ async function simulate(outcome: 'success' | 'failed' | 'no_response') {
         </div>
       </section>
 
-      <section v-else-if="phase === 'not_confirmed'" role="alert" class="space-y-3 rounded-lg bg-white p-4 shadow-sm">
+      <section v-else-if="phase === 'not_confirmed'" role="alert" class="space-y-3 gc-card p-4">
         <h2 class="text-xl font-bold text-stone-900">Payment not confirmed</h2>
         <p class="text-stone-800">
           Your payment could not be confirmed and no order was made. In a live service this would be refunded.
@@ -199,7 +199,7 @@ async function simulate(outcome: 'success' | 'failed' | 'no_response') {
         </div>
       </section>
 
-      <section v-else-if="phase === 'closed' || phase === 'not_payable'" role="status" class="space-y-3 rounded-lg bg-white p-4 shadow-sm">
+      <section v-else-if="phase === 'closed' || phase === 'not_payable'" role="status" class="space-y-3 gc-card p-4">
         <h2 class="text-xl font-bold text-stone-900">
           {{ phase === 'closed' ? 'Orders for this drop have closed' : 'This order can no longer be paid' }}
         </h2>

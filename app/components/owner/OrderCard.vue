@@ -25,13 +25,13 @@ const sizeLabel: Record<string, string> = { '330ml': '330ml', '500ml': '500ml', 
 </script>
 
 <template>
-  <li class="rounded-lg border border-stone-300 bg-white p-3">
+  <li class="gc-card p-3">
     <div class="flex flex-wrap items-start justify-between gap-2">
       <div class="min-w-0">
         <p class="font-semibold">{{ props.order.firstName ?? 'Removed customer' }}</p>
         <p class="text-sm text-stone-700">{{ props.order.maskedPhone ?? 'No phone kept' }}</p>
       </div>
-      <span class="rounded px-2 py-0.5 text-sm font-semibold" :class="statusClass[props.order.status]">
+      <span class="rounded-full px-2.5 py-0.5 text-sm font-semibold" :class="statusClass[props.order.status]">
         {{ statusText[props.order.status] }}
       </span>
     </div>
@@ -44,10 +44,10 @@ const sizeLabel: Record<string, string> = { '330ml': '330ml', '500ml': '500ml', 
       {{ formatShortDate(props.order.dropAt) }} drop, {{ props.order.fulfilment === 'delivery' ? `delivery to ${props.order.area}` : 'pickup' }},
       {{ formatPesewas(props.order.totalPesewas) }}{{ props.order.isSample ? ', Sample' : '' }}
     </p>
-    <p v-if="props.order.refundDue" class="mt-2 rounded bg-red-50 px-2 py-1 text-sm font-semibold text-red-900">
+    <p v-if="props.order.refundDue" class="mt-2 rounded-xl bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-900">
       Refund due (demo: no real money moves)
     </p>
-    <p v-if="props.order.unconfirmedPaymentRefundDue" class="mt-2 rounded bg-red-50 px-2 py-1 text-sm font-semibold text-red-900">
+    <p v-if="props.order.unconfirmedPaymentRefundDue" class="mt-2 rounded-xl bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-900">
       Payment received, not confirmed, refund due
     </p>
     <div v-if="props.order.status === 'paid_confirmed' || props.order.status === 'requested'" class="mt-3 flex flex-wrap gap-2">

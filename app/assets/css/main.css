@@ -33,3 +33,26 @@
   --color-cream-900: #75532b;
   --color-cream-950: #432c15;
 }
+
+/* Visual style (spec 6.4): a soft mint-to-cream page and white cards with large corners and a
+   soft shadow. Plain CSS gradients and shadows, so the look costs no images or downloads. */
+@utility gc-page {
+  background-color: var(--color-cream-100);
+  background-image: linear-gradient(170deg, #e6f4e9 0%, #f3f8ec 30%, var(--color-cream-100) 65%, var(--color-cream-50) 100%);
+}
+
+@utility gc-card {
+  background-color: #fff;
+  border-radius: 1.25rem;
+  box-shadow:
+    0 1px 2px rgb(16 40 24 / 0.05),
+    0 10px 28px -12px rgb(16 40 24 / 0.18);
+}
+
+/* The bar that holds the bottom-anchored primary action. */
+@utility gc-bottom-bar {
+  background-color: rgb(255 255 255 / 0.96);
+  border-top-left-radius: 1.5rem;
+  border-top-right-radius: 1.5rem;
+  box-shadow: 0 -10px 30px -14px rgb(16 40 24 / 0.25);
+}

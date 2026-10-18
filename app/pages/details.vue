@@ -124,17 +124,17 @@ async function submit() {
   <div class="space-y-4 pb-28">
     <h1 class="text-2xl font-extrabold text-stone-900">Your details</h1>
 
-    <div v-if="units === 0" class="rounded-lg bg-white p-4 shadow-sm">
+    <div v-if="units === 0" class="gc-card p-4">
       <p class="text-stone-800">Your order is empty.</p>
       <UButton to="/order" class="mt-3 min-h-11" label="Build your order" />
     </div>
 
     <template v-else>
-      <section class="rounded-lg bg-white p-4 shadow-sm" aria-label="Your order">
+      <section class="gc-card p-4" aria-label="Your order">
         <ul class="space-y-1">
           <li v-for="line in priced" :key="line.item.id" class="flex justify-between gap-2 text-stone-900">
             <span class="flex items-center gap-2">
-              <span aria-hidden="true" class="size-3 shrink-0 rounded-full" :style="{ backgroundColor: flavourColour(line.item.name) }" />
+              <FlavourTile :colour="flavourColour(line.item.name)" size="sm" />
               <span>{{ line.quantity }} x {{ line.item.name }} {{ line.item.size }}</span>
             </span>
             <span>{{ formatPesewas(line.quantity * line.item.pricePesewas) }}</span>
@@ -157,7 +157,7 @@ async function submit() {
               maxlength="50"
               :aria-invalid="invalid"
               :aria-describedby="describedBy"
-              class="block min-h-12 w-full rounded-lg border border-stone-400 bg-white px-3 text-lg text-stone-900 aria-invalid:border-red-700"
+              class="block min-h-12 w-full rounded-xl border border-stone-400 bg-white px-3 text-lg text-stone-900 aria-invalid:border-red-700"
             />
           </template>
         </FormField>
@@ -173,7 +173,7 @@ async function submit() {
               maxlength="30"
               :aria-invalid="invalid"
               :aria-describedby="describedBy"
-              class="block min-h-12 w-full rounded-lg border border-stone-400 bg-white px-3 text-lg text-stone-900 aria-invalid:border-red-700"
+              class="block min-h-12 w-full rounded-xl border border-stone-400 bg-white px-3 text-lg text-stone-900 aria-invalid:border-red-700"
             />
           </template>
         </FormField>
@@ -184,7 +184,7 @@ async function submit() {
             <label
               v-for="option in [{ value: 'pickup', label: 'Pickup' }, { value: 'delivery', label: 'Delivery' }]"
               :key="option.value"
-              class="flex min-h-12 cursor-pointer items-center justify-center rounded-lg border-2 px-2 font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-cane-700"
+              class="flex min-h-12 cursor-pointer items-center justify-center rounded-2xl border-2 px-2 font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-cane-700"
               :class="form.fulfilment === option.value ? 'border-cane-700 bg-cane-700 text-white' : 'border-stone-400 bg-white text-stone-900'"
             >
               <input v-model="form.fulfilment" type="radio" name="fulfilment" :value="option.value" class="sr-only" />
@@ -204,7 +204,7 @@ async function submit() {
                 maxlength="200"
                 :aria-invalid="invalid"
                 :aria-describedby="describedBy"
-                class="block w-full rounded-lg border border-stone-400 bg-white px-3 py-2 text-lg text-stone-900 aria-invalid:border-red-700"
+                class="block w-full rounded-xl border border-stone-400 bg-white px-3 py-2 text-lg text-stone-900 aria-invalid:border-red-700"
               />
             </template>
           </FormField>
@@ -215,8 +215,8 @@ async function submit() {
               <label
                 v-for="option in areas"
                 :key="option.id"
-                class="flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-lg border-2 bg-white px-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-cane-700"
-                :class="form.deliveryAreaId === option.id ? 'border-cane-700' : 'border-stone-300'"
+                class="flex min-h-12 cursor-pointer items-center justify-between gap-2 rounded-2xl border-2 px-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-cane-700"
+                :class="form.deliveryAreaId === option.id ? 'border-cane-700 bg-cane-50' : 'border-stone-300 bg-white'"
               >
                 <span class="flex items-center gap-2">
                   <input
@@ -237,11 +237,11 @@ async function submit() {
             </p>
           </fieldset>
         </template>
-        <p v-else class="rounded-lg bg-white p-3 text-sm text-stone-700">
+        <p v-else class="rounded-2xl bg-white p-3 text-sm text-stone-700">
           Pickup at the sample location, Accra (Demo), on drop day.
         </p>
 
-        <p v-if="submitError" role="alert" class="rounded-lg border border-red-300 bg-white p-3 font-semibold text-stone-900">
+        <p v-if="submitError" role="alert" class="rounded-2xl border border-red-300 bg-white p-3 font-semibold text-stone-900">
           {{ submitError }}
         </p>
       </form>

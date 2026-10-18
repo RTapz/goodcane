@@ -75,7 +75,7 @@ const atLimit = computed(() => overBy.value === 0 && units.value > 0 && availabl
     <StateError v-else-if="status === 'error'" @retry="refresh()" />
 
     <template v-else-if="data">
-      <div v-if="!activeDrop" class="rounded-lg bg-white p-4 shadow-sm">
+      <div v-if="!activeDrop" class="gc-card p-4">
         <h1 class="text-xl font-bold text-stone-900">No drop is scheduled yet</h1>
         <p class="mt-1 text-stone-700">Check back soon for the next one.</p>
         <UButton to="/" class="mt-3 min-h-11" color="neutral" variant="outline" label="Back to this drop" />
@@ -90,21 +90,21 @@ const atLimit = computed(() => overBy.value === 0 && units.value > 0 && availabl
           </p>
         </header>
 
-        <div v-if="notice" role="alert" class="flex items-start justify-between gap-2 rounded-lg border border-amber-400 bg-white p-3">
+        <div v-if="notice" role="alert" class="flex items-start justify-between gap-2 rounded-2xl border border-amber-400 bg-white p-3">
           <p class="font-semibold text-stone-900">{{ notice }}</p>
           <UButton color="neutral" variant="ghost" class="min-h-11 shrink-0" label="Dismiss" @click="clearNotice" />
         </div>
 
-        <p v-if="overBy > 0" role="status" class="rounded-lg bg-cream-200 p-3 text-sm text-stone-900">
+        <p v-if="overBy > 0" role="status" class="rounded-2xl bg-cream-200 p-3 text-sm text-stone-900">
           Your order has {{ plural(units, 'bottle', 'bottles') }}, but only {{ plural(spaces, 'space is', 'spaces are') }} left.
           Remove {{ plural(overBy, 'bottle', 'bottles') }} to continue.
         </p>
-        <p v-else-if="atLimit" role="status" class="rounded-lg bg-cream-200 p-3 text-sm text-stone-900">
+        <p v-else-if="atLimit" role="status" class="rounded-2xl bg-cream-200 p-3 text-sm text-stone-900">
           Your order fills the last spaces in this drop, so you can't add more.
         </p>
 
         <!-- Never dead-end: a full drop offers the next one, and only moves if the customer taps it. -->
-        <div v-if="available.length === 0" class="rounded-lg bg-white p-4 shadow-sm">
+        <div v-if="available.length === 0" class="gc-card p-4">
           <h2 class="text-xl font-bold text-stone-900">This drop is full</h2>
           <template v-if="data.nextDrop && activeDrop.id !== data.nextDrop.id">
             <p class="mt-1 text-stone-700">
@@ -119,7 +119,7 @@ const atLimit = computed(() => overBy.value === 0 && units.value > 0 && availabl
           <p v-else class="mt-1 text-stone-700">No more drops are scheduled yet. Check back soon.</p>
         </div>
 
-        <ul v-else class="space-y-3">
+        <ul v-else class="grid grid-cols-2 gap-3">
           <FlavourCard
             v-for="flavour in flavours"
             :key="flavour.name"

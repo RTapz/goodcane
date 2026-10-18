@@ -18,7 +18,7 @@ const options: { value: Setting; label: string; explain: string }[] = [
       <label
         v-for="option in options"
         :key="option.value"
-        class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border border-stone-300 bg-white p-3"
+        class="flex min-h-11 cursor-pointer items-start gap-3 rounded-2xl border border-stone-300 bg-white p-3"
         :class="props.modelValue === option.value ? 'border-cane-700 ring-1 ring-cane-700' : ''"
       >
         <input
@@ -37,7 +37,7 @@ const options: { value: Setting; label: string; explain: string }[] = [
     </div>
     <p class="mt-2 text-stone-900">
       Buffer: <strong>{{ props.units }} units</strong>
-      <span v-if="props.lowConfidence" class="ml-1 rounded bg-cream-300 px-1.5 py-0.5 text-sm font-semibold text-cream-950">
+      <span v-if="props.lowConfidence" class="ml-1 rounded-full bg-cream-300 px-2.5 py-0.5 text-sm font-semibold text-cream-950">
         Low confidence: sample default, fewer than 3 finished drops
       </span>
     </p>

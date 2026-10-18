@@ -70,7 +70,7 @@ function stop() {
 </script>
 
 <template>
-  <section v-if="me" class="space-y-3 rounded-lg bg-white p-4 shadow-sm" aria-labelledby="reminder-heading">
+  <section v-if="me" class="space-y-3 gc-card p-4" aria-labelledby="reminder-heading">
     <h2 id="reminder-heading" class="font-bold text-stone-900">{{ props.compact ? 'Reminder settings' : 'Reminders' }}</h2>
 
     <template v-if="state === 'opted_in'">
@@ -114,7 +114,7 @@ function stop() {
             <label
               v-for="option in channelOptions"
               :key="option.value"
-              class="flex min-h-12 cursor-pointer items-center justify-center rounded-lg border-2 px-2 font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-cane-700"
+              class="flex min-h-12 cursor-pointer items-center justify-center rounded-2xl border-2 px-2 font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-cane-700"
               :class="channel === option.value ? 'border-cane-700 bg-cane-700 text-white' : 'border-stone-400 bg-white text-stone-900'"
             >
               <input v-model="channel" type="radio" :name="`channel-${props.source}`" :value="option.value" class="sr-only" />
@@ -129,8 +129,8 @@ function stop() {
             <label
               v-for="option in frequencyOptions"
               :key="option.value"
-              class="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border-2 bg-white px-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-cane-700"
-              :class="frequency === option.value ? 'border-cane-700' : 'border-stone-300'"
+              class="flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border-2 px-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-cane-700"
+              :class="frequency === option.value ? 'border-cane-700 bg-cane-50' : 'border-stone-300 bg-white'"
             >
               <input v-model="frequency" type="radio" :name="`frequency-${props.source}`" :value="option.value" class="size-5 accent-cane-700" />
               <span class="font-semibold text-stone-900">{{ option.label }}</span>

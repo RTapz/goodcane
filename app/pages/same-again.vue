@@ -157,7 +157,7 @@ async function pay(expectedTotalPesewas = total.value) {
     <h1 class="text-2xl font-extrabold text-stone-900">Same again, {{ me.firstName }}?</h1>
 
     <!-- Drop closed: show the next drop and let the customer choose it. -->
-    <div v-if="closedNotice && targetDrop" role="status" class="rounded-lg border border-amber-400 bg-white p-3">
+    <div v-if="closedNotice && targetDrop" role="status" class="rounded-2xl border border-amber-400 bg-white p-3">
       <p class="font-semibold text-stone-900">
         Orders for {{ formatDropDate(next!.missedDrop!.dropAt) }} have closed. Next drop: {{ formatDropDate(targetDrop.dropAt) }}.
       </p>
@@ -169,7 +169,7 @@ async function pay(expectedTotalPesewas = total.value) {
       />
     </div>
 
-    <div v-if="!targetDrop" class="rounded-lg bg-white p-4 shadow-sm">
+    <div v-if="!targetDrop" class="gc-card p-4">
       <p class="font-semibold text-stone-900">No drop is open right now.</p>
       <UButton to="/" class="mt-2 min-h-11" label="See what's next" />
     </div>
@@ -187,7 +187,7 @@ async function pay(expectedTotalPesewas = total.value) {
       </section>
 
       <!-- Drop full: ask first (BR-F1). -->
-      <div v-if="tooBig.length > 0" role="status" class="rounded-lg border border-amber-400 bg-white p-3">
+      <div v-if="tooBig.length > 0" role="status" class="rounded-2xl border border-amber-400 bg-white p-3">
         <p class="font-semibold text-stone-900">Only {{ plural(spaces, 'space is', 'spaces are') }} left for your usual.</p>
         <div class="mt-2 flex flex-wrap gap-2">
           <UButton class="min-h-11" label="Reduce to fit" @click="reduceToFit" />
@@ -202,7 +202,7 @@ async function pay(expectedTotalPesewas = total.value) {
         </div>
       </div>
 
-      <section aria-labelledby="usual-heading" class="rounded-lg bg-white p-3 shadow-sm">
+      <section aria-labelledby="usual-heading" class="gc-card p-3">
         <h2 id="usual-heading" class="font-bold text-stone-900">Your usual</h2>
 
         <p v-if="usual.lines.length > 2 && !expanded" class="mt-1 text-stone-800">
@@ -214,7 +214,7 @@ async function pay(expectedTotalPesewas = total.value) {
           <li v-for="line in usual.lines" :key="line.last.menuItemId" class="py-1.5">
             <div class="flex items-center justify-between gap-2">
               <span class="flex min-w-0 items-center gap-2">
-                <span aria-hidden="true" class="size-3 shrink-0 rounded-full" :style="{ backgroundColor: flavourColour((line.item ?? line.last).name) }" />
+                <FlavourTile :colour="flavourColour((line.item ?? line.last).name)" size="sm" />
                 <span class="text-stone-900">{{ (line.item ?? line.last).name }} {{ (line.item ?? line.last).size }}</span>
               </span>
               <QuantityStepper
@@ -230,7 +230,7 @@ async function pay(expectedTotalPesewas = total.value) {
               Price changed: was {{ formatPesewas(line.price.oldPesewas) }}, now {{ formatPesewas(line.price.newPesewas) }}
             </p>
 
-            <div v-if="line.status === 'substituted' && !line.accepted" class="mt-1 rounded bg-cream-200 p-2 text-sm text-stone-900">
+            <div v-if="line.status === 'substituted' && !line.accepted" class="mt-1 rounded-xl bg-cream-200 p-2 text-sm text-stone-900">
               <p>{{ line.last.name }} {{ line.last.size }} is not available. Try {{ line.substitute!.name }} {{ line.substitute!.size }} ({{ formatPesewas(line.substitute!.pricePesewas) }})?</p>
               <div class="mt-1 flex gap-2">
                 <UButton size="sm" class="min-h-11" label="Use this" @click="acceptedSubstitutes = { ...acceptedSubstitutes, [line.last.menuItemId]: true }" />
@@ -253,7 +253,7 @@ async function pay(expectedTotalPesewas = total.value) {
         <p v-else class="mt-1 text-sm text-stone-800">Pickup, sample location, Accra (Demo)</p>
       </section>
 
-      <div v-if="areaGone" role="status" class="rounded-lg border border-amber-400 bg-white p-3">
+      <div v-if="areaGone" role="status" class="rounded-2xl border border-amber-400 bg-white p-3">
         <p class="font-semibold text-stone-900">Delivery to {{ last.area }} is no longer offered.</p>
         <div class="mt-2 flex flex-wrap gap-2">
           <UButton class="min-h-11" label="Switch to pickup" @click="switchedToPickup = true" />
@@ -261,7 +261,7 @@ async function pay(expectedTotalPesewas = total.value) {
         </div>
       </div>
 
-      <p v-if="payError" role="alert" class="rounded-lg border border-red-300 bg-white p-3 font-semibold text-stone-900">{{ payError }}</p>
+      <p v-if="payError" role="alert" class="rounded-2xl border border-red-300 bg-white p-3 font-semibold text-stone-900">{{ payError }}</p>
 
       <!-- Below the fold: loaded lazily. -->
       <NuxtLink to="/order" class="inline-flex min-h-11 items-center font-semibold text-cane-700 underline" @click.prevent="continueIn('/order')">

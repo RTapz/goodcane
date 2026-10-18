@@ -25,7 +25,7 @@ const links = [
       v-for="link in links"
       :key="link.to"
       :to="link.to"
-      class="inline-flex min-h-11 items-center rounded-md px-3 font-semibold text-cane-800 hover:bg-cane-50"
+      class="inline-flex min-h-11 items-center rounded-full px-4 font-semibold text-cane-800 hover:bg-cane-50"
       :class="route.path === link.to ? 'bg-cane-100 underline underline-offset-4' : ''"
       :aria-current="route.path === link.to ? 'page' : undefined"
     >

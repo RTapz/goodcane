@@ -5,12 +5,12 @@ const props = defineProps<{ order: OrderSummary }>()
 </script>
 
 <template>
-  <section class="rounded-lg bg-white p-4 shadow-sm" aria-labelledby="summary-heading">
+  <section class="gc-card p-4" aria-labelledby="summary-heading">
     <h2 id="summary-heading" class="font-bold text-stone-900">For {{ formatDropDate(props.order.drop.dropAt) }}</h2>
     <ul class="mt-2 space-y-1">
       <li v-for="line in props.order.lines" :key="line.menuItemId" class="flex justify-between gap-2 text-stone-900">
         <span class="flex items-center gap-2">
-          <span aria-hidden="true" class="size-3 shrink-0 rounded-full" :style="{ backgroundColor: flavourColour(line.name) }" />
+          <FlavourTile :colour="flavourColour(line.name)" size="sm" />
           <span>{{ line.quantity }} x {{ line.name }} {{ line.size }}</span>
         </span>
         <span>{{ formatPesewas(line.quantity * line.unitPricePesewas) }}</span>

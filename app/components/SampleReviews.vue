@@ -11,7 +11,7 @@ const reviews = [
   <section aria-labelledby="reviews-heading">
     <h2 id="reviews-heading" class="text-base font-bold text-stone-900">What people say</h2>
     <ul class="mt-2 space-y-2">
-      <li v-for="review in reviews" :key="review.name" class="rounded-lg bg-white p-3 shadow-sm">
+      <li v-for="review in reviews" :key="review.name" class="gc-card p-3">
         <UBadge label="Sample review" color="neutral" variant="subtle" size="sm" />
         <p class="mt-1 text-stone-800">"{{ review.text }}"</p>
         <p class="mt-1 text-sm text-stone-600">{{ review.name }}</p>
