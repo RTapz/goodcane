@@ -8,10 +8,10 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 
 1. `pnpm install`
 2. Create a database, for example `goodcane_drops`.
-3. Copy `.env.example` to `.env` and fill in `DATABASE_URL` (never commit `.env`).
+3. Copy `.env.example` to `.env` and fill in `DATABASE_URL` and `OWNER_PASSCODE` (never commit `.env`).
 4. `pnpm db:migrate` to create the tables.
 5. `pnpm seed` to load sample data.
-6. `pnpm dev` and open http://localhost:3000.
+6. `pnpm dev` and open http://localhost:3000. The owner screens are at http://localhost:3000/owner.
 
 ## Scripts
 
@@ -19,7 +19,7 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 |---|---|
 | `pnpm dev` | Runs the app locally |
 | `pnpm test` | Unit tests (Vitest), fast and database-free |
-| `pnpm test:integration` | Order creation against a real database (`TEST_DATABASE_URL`, name must end in `_test`) |
+| `pnpm test:integration` | Orders, payments, the demand view and the owner gate against a real database (`TEST_DATABASE_URL`, name must end in `_test`) |
 | `pnpm test:api` | Builds the app and calls it over HTTP against the test database, which it migrates and seeds itself (about a minute) |
 | `pnpm typecheck` | Type checks the whole project |
 | `pnpm db:generate` | Creates a new migration after a schema change |
@@ -32,9 +32,17 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 - Runs in one transaction: deletes every `is_sample` row, re-adds the 12 owner settings, inserts 8 completed drops, a live drop, a further open drop, 40 sample customers, orders, payments, reminders and consent events, then verifies the result. If any check fails, everything is rolled back.
 - Uses a fixed random seed. Two runs in the same hour give identical data. Set `SEED_NOW` (an ISO date) to reproduce an exact run.
 - **Seed dates ignore the `drop_days` setting on purpose.** They are relative to now, so the demo always has a live drop about 3 days before cut-off, whatever day you run it.
+- Forecast snapshots for the finished drops are written with the same function the owner screen uses, so the accuracy metric has scored drops from the start.
 - Customers are "Sample Customer 01" to "Sample Customer 40" with fake phone numbers `0000000001` to `0000000040`. No real people, prices or messages are involved.
 
 - The final check compares the arrival pattern the seed learns back (`learnPaceTable`) with the one it was generated from (`pickDay`), and fails if any day is more than 8 points off. [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md) explains both functions.
+
+## Owner screens (demo gate)
+
+- `/owner` (This drop: demand, forecast, buffer, pilot metrics) and `/owner/orders` (fulfil, cancel, refund-due flags) sit behind one passcode, `OWNER_PASSCODE`. Each valid login gets a random session token in an HttpOnly cookie, `gc_owner`; only its hash is stored, and it lasts 12 hours. The customer cookie never opens these screens.
+- After 5 wrong passcodes from one IP within 15 minutes, that IP gets "Too many attempts" (429) until the oldest of those failures is more than 15 minutes old. Only a hash of the IP and the time are kept, for 24 hours.
+- **This is a demo gate, not real authentication.** A live service needs proper owner accounts (individual logins, password reset, ideally two-factor), and behind a proxy the deployment must pass the real client IP through for the lockout to work.
+- The forecast is explained step by step in [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md), section 6.
 
 ## Known limitations
 

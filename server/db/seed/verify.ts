@@ -1,7 +1,7 @@
 // Verification run at the end of `pnpm seed`, inside the same transaction.
 // It prints every check, then throws if any failed, which rolls the whole seed back.
 import { and, eq, sql } from 'drizzle-orm'
-import { learnPaceTable, PACE_DAYS, type ClosedDropPaid, type PaceDay } from '../../domain/forecast'
+import { hitCapacity, learnPaceTable, PACE_DAYS, type ClosedDropPaid, type PaceDay } from '../../domain/forecast'
 import type { Db } from '../client'
 import * as schema from '../schema'
 
@@ -77,7 +77,7 @@ export async function verifySeed(tx: Tx): Promise<void> {
 
     // Drops that hit capacity are left out of the pace table: turning customers away
     // cuts off the late orders, so their arrival shape is skewed towards early days.
-    if (sold >= drop.capacity) {
+    if (hitCapacity(sold, drop.capacity)) {
       console.log('    (hit capacity: left out of the pace table)')
       continue
     }

@@ -295,3 +295,25 @@ export const forecastSnapshots = pgTable(
   },
   (t) => [unique('forecast_snapshots_drop_method_unique').on(t.dropId, t.method)]
 )
+
+// Demo owner gate (spec 8). Not sample data, so no is_sample: a reseed must not log the owner out.
+export const ownerSessions = pgTable('owner_sessions', {
+  id: id(),
+  // SHA-256 of the raw cookie token, never the raw value.
+  tokenHash: text('token_hash').notNull().unique(),
+  expiresAt: timestamptz('expires_at').notNull(),
+  revokedAt: timestamptz('revoked_at'),
+  createdAt: createdAt()
+})
+
+// Failed owner logins, for the 5 per 15 minutes limit. Only a hash of the IP and the time.
+// Rows older than 24 hours are pruned on each login attempt.
+export const ownerLoginAttempts = pgTable(
+  'owner_login_attempts',
+  {
+    id: id(),
+    ipHash: text('ip_hash').notNull(),
+    createdAt: createdAt()
+  },
+  (t) => [index('owner_login_attempts_ip_time_idx').on(t.ipHash, t.createdAt)]
+)

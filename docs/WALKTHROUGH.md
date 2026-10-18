@@ -1,6 +1,6 @@
 # Walkthrough
 
-Plain-language explanations of the trickier parts of GoodCane Drops: the pace functions (sections 1 and 2), the idempotency key on order creation (section 3), transactions, row locks and holds on payment (section 4), and "your usual" on C7 (section 5).
+Plain-language explanations of the trickier parts of GoodCane Drops: the pace functions (sections 1 and 2), the idempotency key on order creation (section 3), transactions, row locks and holds on payment (section 4), "your usual" on C7 (section 5), and the forecast behind the owner's demand view, O1 (section 6).
 
 Two small functions do the "pace" work in GoodCane Drops. `pickDay` invents realistic arrival times for sample orders. `learnPaceTable` reads arrival times back and learns the shape. If the seed is working, the shape it learns should be close to the shape `pickDay` was told to produce. That check runs at the end of every `pnpm seed`.
 
@@ -280,3 +280,110 @@ Today: Raw cane 330ml costs GH₵35.00. Lemon-mint 500ml is sold out, and Lemon-
 5. Ama taps **Pay**. The page sends the lines and the total it showed (16000 pesewas) as a check. The server works out the price itself from the menu; if its total were different, it would refuse and C7 would ask "The total is now GH₵X. Continue?". The customer never pays a number they did not see.
 
 At no step did the app swap, reduce or move anything without Ama tapping a button.
+
+## 6. The forecast: from bookings to "make about N"
+
+Files: `server/domain/forecast/*` (spec 5.9). The database work is in `server/services/owner/demand.ts`; every number is worked out by the small pure functions below, so each one can be checked by hand.
+
+Everything is counted in **units**: 1 unit = one 330ml bottle; larger sizes count as more, using each menu item's `capacity_weight` (sample: 330ml = 1, 500ml = 1, 2L = 6, 4L = 12).
+
+Anything that cannot be worked out comes back as `{ ok: false, reason: 'no_history' }` (or another named reason) instead of a number, so the screen never shows `NaN`.
+
+### demandUnits: what people really wanted (BR-FC1)
+
+`demand = paid units + turned-away units`. A drop that sold out at 50 with 6 more units turned away had a demand of **56**, not 50. Using paid units alone would teach the forecast that sell-outs mean low demand.
+
+### turnedAwayUnits: not counting anyone twice (BR-F2)
+
+Ama is turned away for 3 units, reduces her order and pays for 1. Her 1 paid unit is already counted, so her turned-away row is ignored. Kofi is turned away for 2 and does not come back: his 2 count. Rows with no order attached (the seed's) always count. So 3 + 2 + 4 (no order) gives **6**, not 9.
+
+### weightedBaseline: recent drops count more (BR-FC2)
+
+The last 4 finished drops' demand, oldest first: 40, 44, 50, 52. Weights 1, 2, 3, 4, newest highest:
+
+(40 x 1 + 44 x 2 + 50 x 3 + 52 x 4) / (1 + 2 + 3 + 4) = (40 + 88 + 150 + 208) / 10 = **48.6**
+
+With fewer than 4 drops it uses weights 1 to n; with none it returns `no_history`.
+
+### paceShareAt: how much is usually paid by now (BR-FC3, BR-FC4)
+
+`learnPaceTable` (section 2) gives the share of final paid units already paid by each day before cut-off. The seed's shape is 20%, 35%, 60%, 80%, 92%, 100% for days 5 to 0. Drops that hit capacity are left out (`hitCapacity`): their late customers were turned away, which would make orders look earlier than they are.
+
+Between whole days the share is a straight line. At **2.3 days** before cut-off we are between day 3 (60%) and day 2 (80%), 0.3 of the way back from day 2:
+
+80% - 0.3 x (80% - 60%) = **74%**
+
+More than 5 days before cut-off there is no data, so the answer is `too_early`. At or after cut-off the share is 1: everything that will be paid has been.
+
+### paceProjection: where today's bookings are heading (BR-FC4)
+
+`projection = paid units now / share`. 30 paid when 60% is usually in gives 30 / 0.6 = **50**; 30 paid when only 40% is usually in gives 30 / 0.4 = **75**. A share of 0 is refused (`share_zero`) instead of dividing by zero.
+
+### chooseHeadline: pace or baseline (BR-FC5)
+
+- Fewer than 4 finished drops: the **baseline**, because the pace table needs history.
+- More than 5 days before cut-off: the baseline, labelled **"Baseline (too early for pace)"**.
+- Otherwise the **pace projection**, with the baseline shown beside it for comparison.
+
+### conversionRate and likelyUnits: the Likely tier (BR-FC6)
+
+Requests are not paid yet, so they are not counted as demand. Of all orders placed on finished drops, the share that got paid is the conversion rate (sample fallback 0.7 with fewer than 3 finished drops). 10 requested units x 0.7 = **7 likely**. Lapsed requests (5.3 note) are left out first. Likely is always shown apart from Paid.
+
+### projectionRange: an honest "about" (BR-FC7)
+
+`projection plus or minus the recent error band`. The band is the WAPE of the last few scored drops (below). With none yet it falls back to 10%: 50 becomes **about 45 to 55**. With a recent WAPE of 8.9%: 50 x 0.089 = 4.45, so **about 46 to 54**.
+
+### unplannedBuffer: walk-ins and WhatsApp orders (BR-FC8)
+
+From the last 5 finished drops' "sold without a pre-order" figures, say 8, 12, 10, 16, 9:
+
+- **Careful with waste** = the lowest, **8**
+- **Balanced** = the average, (8 + 12 + 10 + 16 + 9) / 5 = **11**
+- **Never sell out** = the highest, **16**
+
+With fewer than 3 finished drops it uses a sample 10 and says **Low confidence**.
+
+### suggestedProduction: the headline (BR-FC9)
+
+`round(projection + buffer)`, rounded once at the very end: round(48.6 + 11) = round(59.6) = **60**. It is a suggestion; the owner decides.
+
+### plannedShare: how predictable the drop was (BR-FC12)
+
+`pre-ordered / (pre-ordered + sold without a pre-order)`. 45 pre-ordered and 15 walk-ins gives 45 / 60 = **75%**. Before the batch is closed there is no walk-in figure yet, so the open drop shows an estimate against the suggestion: "45 of 60 expected units pre-ordered (estimate)".
+
+### snapshotAtCheckpoint: recording the forecast fairly (BR-FC10)
+
+To score a forecast later we must keep what it said at a fixed moment, the checkpoint: 3 days before cut-off. The function is given everything and throws away what came later itself: payments after the checkpoint, cancellations after it, and drops that closed after it. So if nobody opens O1 until a day late, the snapshot it writes is **exactly the same** as an on-time one (there is a test for this). It is written once per drop and method, and the seed writes past drops' snapshots with the same function.
+
+### mape, wape, bias, naiveBenchmark: was it any good? (BR-FC11)
+
+Spec fixture, as (forecast, actual):
+
+| Drop | Forecast | Actual | Error | Error / actual |
+|---|---|---|---|---|
+| 1 | 50 | 46 | +4 | 8.70% |
+| 2 | 44 | 50 | -6 | -12.00% |
+| 3 | 58 | 52 | +6 | 11.54% |
+| 4 | 47 | 48 | -1 | -2.08% |
+| 5 | 55 | 50 | +5 | 10.00% |
+
+- **MAPE** = average of the sizes of the last column = 44.32% / 5 = **8.9%**
+- **WAPE** = total size of errors / total actual = 22 / 246 = **8.9%**
+- **Bias** = average of the signed last column = 16.15% / 5 = **+3.2%** (positive means forecasting too high)
+- **Naive benchmark**: "next drop = last drop's actual", scored the same way on drops 2 to 5: 4/50, 2/52, 4/48, 2/50 = 8%, 3.85%, 8.33%, 4%, average **6.0%**
+
+Here the naive guess beats the forecast. That is a real possible result and the screen shows it rather than hiding it. Actuals of 0 are skipped and counted, never divided by.
+
+### How to read the O1 screen
+
+Start at the green box: **Make about 60 units** is the suggestion, built from the projected pre-orders plus the buffer for walk-ins, and you decide. Below it, the countdown says how long orders stay open. **Booked so far** shows Paid (solid green, firm) and Likely (striped amber, requests that probably will pay) as separate parts of one bar, with the spaces left after them; turned-away units appear in red when the drop was full. **Projected pre-orders** gives the range ("about 53 to 62") and puts the baseline and the pace projection side by side, so you can see whether this drop is running ahead of or behind the usual. The buffer choice changes only the walk-in allowance, never the pre-order numbers. **Planned share** says how much of the batch is already spoken for. **By flavour** helps with the mix, but the forecast itself is for the total. A finished drop shows its final demand instead, with the forecast made at the checkpoint next to what really happened. **Pilot metrics** at the bottom are the four numbers the pilot is judged on, with an honest note that they come from sample data.
+
+### Check your understanding
+
+1. A drop sold out at 70 with 9 units turned away. What is its demand, and why would the pace table leave it out?
+2. It is 4.5 days before cut-off and the table says 35% at day 4 and 20% at day 5. What share does `paceShareAt` give, and what is the projection with 14 units paid?
+3. Why does the snapshot ignore a payment made one hour after the checkpoint, even if O1 is opened two days later?
+4. The buffer setting changes from Balanced to Never sell out. Which numbers on O1 change, and which stay the same?
+5. Over 4 scored drops the forecast's MAPE is 8.3% and the naive benchmark is 6.0%. What does that tell you, and what would you check next?
+
+Answers: (1) 79 units; turning people away cut off the late orders, so its arrival shape looks too early. (2) Halfway between: 27.5%, so 14 / 0.275 = about 51. (3) The forecast must only use what was known at the checkpoint, or its accuracy would be flattered. (4) The buffer and suggested production change; paid, likely, the projection and its range do not. (5) The forecast is not yet better than "same as last time"; check the bias (consistently low or high?) and whether more drops are needed before trusting either.

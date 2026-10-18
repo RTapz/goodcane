@@ -13,6 +13,9 @@ process.env.DATABASE_URL = url
 process.env.NUXT_DATABASE_URL = url
 // A made-up demo number, so the test can check every wa.me link uses it and only it.
 process.env.DEMO_WHATSAPP_NUMBER = '233200000000'
+// A passcode made up for this run only, so no real one is ever needed or committed.
+const ownerPasscode = crypto.randomUUID()
+process.env.NUXT_OWNER_PASSCODE = ownerPasscode
 
 await setup({ rootDir, server: true, build: true })
 
@@ -308,5 +311,90 @@ describe('returning customer: /api/me, reminders and the C7 two-step reorder', (
       })
     })
     expect(anonymous.status).toBe(404)
+  })
+})
+
+// Last in the file: the throttle check leaves this IP locked out of owner login for 15 minutes.
+describe('owner gate over HTTP (spec 8)', () => {
+  const ownerRoutes: [string, string][] = [
+    ['GET', '/api/owner/session'],
+    ['GET', '/api/owner/drops'],
+    ['GET', '/api/owner/metrics'],
+    ['GET', '/api/owner/orders'],
+    ['GET', '/api/owner/drop/00000000-0000-4000-8000-000000000000/demand'],
+    ['POST', '/api/owner/settings/buffer'],
+    ['POST', '/api/owner/orders/00000000-0000-4000-8000-000000000000/fulfil'],
+    ['POST', '/api/owner/orders/00000000-0000-4000-8000-000000000000/cancel']
+  ]
+  const login = (passcode: string) =>
+    fetch('/api/owner/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode }) })
+
+  async function ownerCookie() {
+    const response = await login(ownerPasscode)
+    expect(response.status).toBe(200)
+    const setCookie = response.headers.getSetCookie().find((c) => c.startsWith('gc_owner='))!
+    expect(setCookie).toMatch(/HttpOnly/i)
+    expect(setCookie).toMatch(/SameSite=Lax/i)
+    return setCookie.split(';')[0]!
+  }
+
+  it('every owner route answers a bare 401 without the owner session', async () => {
+    for (const [method, path] of ownerRoutes) {
+      const response = await fetch(path, { method })
+      expect(response.status, path).toBe(401)
+      // Nitro echoes the request URL; everything else must say nothing about why.
+      const { url: _url, ...rest } = (await response.json()) as Record<string, unknown>
+      expect(rest).toEqual({ error: true, statusCode: 401, statusMessage: 'Unauthorized', message: 'Unauthorized' })
+    }
+  })
+
+  it('a customer session cookie never grants owner access', async () => {
+    const next = nextDropResponse.parse(await $fetch('/api/drops/next'))
+    const created = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        dropId: next.drop!.id,
+        lines: [{ menuItemId: next.menu[0]!.id, quantity: 1 }],
+        firstName: 'Sample',
+        phone: '020 000 0011',
+        fulfilment: 'pickup',
+        idempotencyKey: crypto.randomUUID()
+      })
+    })
+    const customer = created.headers.getSetCookie().find((c) => c.startsWith('gc_session='))!.split(';')[0]!
+    for (const [method, path] of ownerRoutes) {
+      expect((await fetch(path, { method, headers: { cookie: customer } })).status, path).toBe(401)
+    }
+    // Not even with the customer token pasted into the owner cookie.
+    const asOwner = `gc_owner=${customer.split('=')[1]}`
+    expect((await fetch('/api/owner/session', { headers: { cookie: asOwner } })).status).toBe(401)
+  })
+
+  it('a wrong passcode is a bare 401 and sets no cookie', async () => {
+    const response = await login('not-the-passcode')
+    expect(response.status).toBe(401)
+    expect(response.headers.getSetCookie().some((c) => c.startsWith('gc_owner='))).toBe(false)
+  })
+
+  it('the right passcode opens the owner routes, and logout closes them again', async () => {
+    const cookie = await ownerCookie()
+    expect((await fetch('/api/owner/session', { headers: { cookie } })).status).toBe(200)
+    const drops = (await (await fetch('/api/owner/drops', { headers: { cookie } })).json()) as { defaultDropId: string }
+    const demand = await fetch(`/api/owner/drop/${drops.defaultDropId}/demand`, { headers: { cookie } })
+    expect(demand.status).toBe(200)
+    const body = (await demand.json()) as { suggested: number | null; units: { paid: number } }
+    expect(body.units.paid).toBeGreaterThan(0)
+    expect(body.suggested).not.toBeNull()
+    expect((await fetch('/api/owner/metrics', { headers: { cookie } })).status).toBe(200)
+
+    expect((await fetch('/api/owner/logout', { method: 'POST', headers: { cookie } })).status).toBe(200)
+    expect((await fetch('/api/owner/session', { headers: { cookie } })).status).toBe(401)
+  })
+
+  it('5 failed attempts in 15 minutes gives 429, even for the right passcode', async () => {
+    // One failure already happened above; four more reach the limit of 5.
+    for (let i = 0; i < 4; i++) expect((await login('not-the-passcode')).status).toBe(401)
+    expect((await login(ownerPasscode)).status).toBe(429)
   })
 })

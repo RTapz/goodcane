@@ -9,5 +9,5 @@ export async function resetTestDatabase(sql: postgres.Sql) {
   if (!name.endsWith('_test')) {
     throw new Error(`Refusing to reset database "${name}": its name does not end in _test.`)
   }
-  await sql`truncate table "order_history", "payments", "order_items", "reminders", "turned_away", "forecast_snapshots", "consent_events", "access_tokens", "orders", "customers", "menu_items", "drops" cascade`
+  await sql`truncate table "order_history", "payments", "order_items", "reminders", "turned_away", "forecast_snapshots", "consent_events", "access_tokens", "orders", "customers", "menu_items", "drops", "settings", "owner_sessions", "owner_login_attempts" cascade`
 }

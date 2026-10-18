@@ -22,6 +22,13 @@
       "when": 1792258131695,
       "tag": "0002_payment_result_and_turned_away_order",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792281143518,
+      "tag": "0003_owner_gate",
+      "breakpoints": true
     }
   ]
 }

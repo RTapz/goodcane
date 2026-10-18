@@ -1,3 +1,5 @@
+import { available, unavailable, type Maybe } from './result'
+
 /** Units paid at one moment (one paid order). */
 export interface PaidUnits {
   paidAt: Date
@@ -63,4 +65,31 @@ export function learnPaceTable(drops: ClosedDropPaid[]): PaceTable {
     table[day] = sums[day] / used
   }
   return table
+}
+
+/**
+ * The pace share at any moment, not just on whole days (BR-FC4).
+ *
+ * The table only has whole days. Part-way through a day we draw a straight line between the
+ * two day marks. Example: 2.3 days before cut-off sits between day 3 (60%) and day 2 (80%),
+ * 0.3 of the way from day 2 towards day 3, so the share is 80% - 0.3 x (80% - 60%) = 74%.
+ *
+ * - More than 5 days before cut-off: the table has no data, so the share is unavailable
+ *   ("too early"); O1 then uses the baseline only.
+ * - At or after cut-off: everything that will be paid has been paid, so the share is 1.
+ */
+export function paceShareAt(table: PaceTable, daysBeforeCutOff: number): Maybe<number, 'too_early'> {
+  if (daysBeforeCutOff > 5) {
+    return unavailable('too_early')
+  }
+  if (daysBeforeCutOff <= 0) {
+    return available(1)
+  }
+  const laterDay = Math.floor(daysBeforeCutOff) as PaceDay // closer to cut-off, higher share
+  if (laterDay === daysBeforeCutOff) {
+    return available(table[laterDay])
+  }
+  const earlierDay = (laterDay + 1) as PaceDay // further from cut-off, lower share
+  const fraction = daysBeforeCutOff - laterDay // 0.3 in the example above
+  return available(table[laterDay] - fraction * (table[laterDay] - table[earlierDay]))
 }

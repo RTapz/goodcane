@@ -17,6 +17,7 @@ import { settingsDefaults } from '../settings-defaults'
 import { flavours, mainFlowSizes, sizes, sizesFor } from './menu'
 import { pickDay as defaultPickDay } from './pickDay'
 import { chance, pickOne, randBetween, randInt, seededUuid, shuffle, type Rand } from './random'
+import { buildSnapshots, type ForecastSnapshotRow } from './snapshots'
 
 export const SEED = 20261015
 export const SAMPLE_CUSTOMER_COUNT = 40
@@ -52,6 +53,7 @@ export interface SampleData {
   turnedAway: TurnedAwayRow[]
   consentEvents: ConsentEventRow[]
   reminders: ReminderRow[]
+  forecastSnapshots: ForecastSnapshotRow[]
 }
 
 export interface BuildOptions {
@@ -105,7 +107,8 @@ export function buildSampleData({ rand, now, pickDay = defaultPickDay }: BuildOp
     orderHistory: [],
     turnedAway: [],
     consentEvents: [],
-    reminders: []
+    reminders: [],
+    forecastSnapshots: []
   }
   const leadTimeDays = settingsDefaults.lead_time_days
   const newId = () => seededUuid(rand)
@@ -549,6 +552,10 @@ export function buildSampleData({ rand, now, pickDay = defaultPickDay }: BuildOp
   data.customers = sampleCustomers
     .filter((c) => c.lastActiveAt > 0)
     .map((c) => ({ ...c.row, lastActiveAt: new Date(c.lastActiveAt) }))
+
+  // Forecast snapshots last, so their ids do not shift any other row's.
+
+  data.forecastSnapshots = buildSnapshots(data, settingsDefaults.forecast_checkpoint_days, newId)
 
   return data
 }

@@ -92,6 +92,7 @@ async function insertSampleData(tx: Tx, data: SampleData) {
   await insertInChunks(tx, schema.turnedAway, data.turnedAway)
   await insertInChunks(tx, schema.consentEvents, data.consentEvents)
   await insertInChunks(tx, schema.reminders, data.reminders)
+  await insertInChunks(tx, schema.forecastSnapshots, data.forecastSnapshots)
 }
 
 const now = seedNow()

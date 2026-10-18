@@ -44,3 +44,13 @@ export function splitDuration(ms: number) {
     seconds: total % 60
   }
 }
+
+/** 0.0826 -> "8.3%". */
+export function formatPercent(share: number, digits = 1): string {
+  return `${(share * 100).toFixed(digits)}%`
+}
+
+/** "Mon 12 Oct", for compact drop pickers. */
+export function formatShortDate(date: Date | string): string {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: TIME_ZONE, weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(date))
+}

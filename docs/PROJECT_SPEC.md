@@ -191,18 +191,20 @@ Implemented as pure, tested functions in `server/domain/forecast`.
 - **BR-FC1 Demand units** for a closed drop = paid_confirmed units + turned-away units. Use demand units for all history, otherwise capped drops understate demand.
 - **BR-FC2 Baseline:** weighted moving average of the last 4 closed drops' demand units, weights 1, 2, 3, 4 (newest highest). Fixture: 40, 44, 50, 52 gives 48.6.
 - **BR-FC3 Pace table:** from closed drops, using `paid_at`, compute the cumulative share of final planned units already paid by each day before cut-off (5, 4, 3, 2, 1, 0), averaged across drops. Seed shape: 20%, 35%, 60%, 80%, 92%, 100%.
-- **BR-FC4 Pace projection** at day d = paid units now divided by pace share at day d. Fixture: 30 paid at 60% gives 50; 30 at 40% gives 75.
-- **BR-FC5** Use the baseline when there are fewer than 4 closed drops; otherwise the headline projection is the pace projection, with the baseline shown for comparison.
+- **BR-FC4 Pace projection** at day d = paid units now divided by pace share at day d. Fixture: 30 paid at 60% gives 50; 30 at 40% gives 75. Between whole days the share is a straight line between the two day marks (2.3 days before cut-off, between 60% at day 3 and 80% at day 2, gives 74%). More than 5 days before cut-off there is no pace data, so the pace projection is unavailable; at or after cut-off the share is 1.
+- **BR-FC5** Use the baseline when there are fewer than 4 closed drops, or when it is more than 5 days before cut-off (labelled "Baseline (too early for pace)"); otherwise the headline projection is the pace projection, with the baseline shown for comparison.
 - **BR-FC6 Likely tier** = open requested units multiplied by the request-to-paid conversion rate from closed drops (fallback sample 0.7 with fewer than 3 closed drops). Always shown separately from Paid.
 - **BR-FC7 Range:** projection plus or minus the recent error band (fallback plus or minus 10%). Show as "about 45 to 55".
 - **BR-FC8 Unplanned buffer** from the last up to 5 closed drops' unplanned sold: Careful with waste = lowest, Balanced = average (rounded), Never sell out = highest. Default **Balanced**. With fewer than 3 closed drops show a sample default with "Low confidence".
 - **BR-FC9 Suggested production** = round(projected planned units + buffer). The owner always decides.
-- **BR-FC10 Snapshots:** at the checkpoint (sample: 3 days before cut-off) store the projection in `forecast_snapshots`.
+- **BR-FC10 Snapshots:** at the checkpoint (sample: 3 days before cut-off) store the projection in `forecast_snapshots`. A snapshot is always computed **as of the nominal checkpoint** (cut-off minus `forecast_checkpoint_days`), using only payments with `paid_at` at or before that moment and only drops whose cut-off is before it, so a late computation gives exactly the same result as an on-time one. It is written lazily on the first O1 load after the checkpoint, once per drop and method (idempotent), never on every page view. The seed writes past drops' snapshots with the same function.
 - **BR-FC11 Accuracy:** actual = final demand units at cut-off. Report MAPE, WAPE, bias and the naive benchmark (forecast = previous drop's actual), with the number of scored drops. Score only drops that have a pace snapshot.
   - MAPE = average of absolute error divided by actual.
   - WAPE = sum of absolute errors divided by sum of actuals.
   - Bias = average of signed error divided by actual.
-  - Test fixture (forecast, actual): (50, 46), (44, 50), (58, 52), (47, 48), (55, 50). Expected MAPE about 8.9%, WAPE about 8.9% (22 over 246), bias about +3.2%, naive benchmark about 6.1% on drops 2 to 5.
+  - Test fixture (forecast, actual): (50, 46), (44, 50), (58, 52), (47, 48), (55, 50). Expected MAPE about 8.9%, WAPE about 8.9% (22 over 246), bias about +3.2%, naive benchmark about 6.0% on drops 2 to 5 (the same MAPE formula, error divided by actual: 4/50, 2/52, 4/48, 2/50, average 6.04%).
+  - Bias is (forecast minus actual) divided by actual, so a positive bias means over-forecasting. Pairs with an actual of 0 are skipped and counted, never divided by.
+  - Snapshots are taken as of the nominal checkpoint (BR-FC10), so scoring never uses data from after the checkpoint.
 - **BR-FC12 Planned share** = pre-ordered units divided by (pre-ordered units plus unplanned sold).
 - **Honesty rule:** the demo forecast learns from seeded data, so it proves the mechanism, not real accuracy. Say so on the metrics page and in the write-up.
 
@@ -234,7 +236,7 @@ A persistent DEMO banner appears on all pages. Mobile first: single column at 36
 
 | # | Screen | Contents | Priority |
 |---|---|---|---|
-| O1 | **This drop (demand view)** | Paid versus Requested tiers in different colours, projection and range, buffer setting, suggested production, spaces left, turned-away units, planned share, cut-off countdown | P0 |
+| O1 | **This drop (demand view)** | Paid versus Requested tiers in different colours, projection and range, buffer setting, suggested production, spaces left, turned-away units, planned share, cut-off countdown. Also: "Booked so far, by flavour" (paid and likely per flavour, lapsed requests excluded; the forecast is a total, not per flavour) and a compact "Pilot metrics" block with the four required numbers. Everything is in **units** (1 unit = one 330ml bottle; larger sizes count as more, per `capacity_weight`). For the open drop, planned share reads "45 of 60 expected units pre-ordered (estimate)", expected being suggested production; finished drops show the exact BR-FC12 figure | P0 |
 | O2 | **Orders** | Filter by drop and status, mark fulfilled, cancel, refund-due flag | P0 |
 | O3 | **Close batch** | Rule set 5.10 | P1 |
 | O4 | **Settings** | All sample values in 5.1 and the confirmation mode, menu and prices, delivery areas and fees | P1 |
@@ -280,6 +282,8 @@ Every table that holds sample data has `is_sample boolean`. In `DEMO_MODE` every
 | **turned_away** | id, drop_id, order_id (nullable, unique: one row per order, BR-F2), units, reason, created_at |
 | **order_history** | id, order_id, from_status, to_status, actor, created_at |
 | **forecast_snapshots** | id, drop_id, checkpoint_at, method (baseline, pace), projected_units |
+| **owner_sessions** | id, token_hash (unique, SHA-256 only), expires_at, revoked_at, created_at (demo owner gate) |
+| **owner_login_attempts** | id, ip_hash (SHA-256 of the IP, nothing else), created_at; rows older than 24 hours are pruned |
 
 Rules enforced on the server (not only in screens): capacity inside one transaction; each payment reference processed once; the reminder queue excludes anyone ineligible (BR-R7); planned share and forecasts are calculated, not stored.
 
@@ -332,6 +336,11 @@ Key endpoints (indicative):
 | `POST /api/reminders/optin`, `/optout` | Consent events, session required (BR-R1, BR-R2, BR-R8). `optin`: `{ channel: whatsapp or sms, frequency, source: c6 or c7 }`, refused after "Stop reminders". `optout`: `{ choice: none or stop, source }` |
 | `GET /api/owner/drop/:id/demand` | Demand view numbers |
 | `POST /api/owner/drop/:id/close` | Close batch |
+| `POST /api/owner/login`, `/logout`, `GET /api/owner/session` | Demo owner gate: passcode from `OWNER_PASSCODE` compared in constant time; `gc_owner` cookie (HttpOnly, SameSite=Lax) holding a random token stored only as a hash; 5 failed attempts per 15 minutes per IP gives 429. Every other `/api/owner/*` route answers 401 with no detail without it. A live service would use real owner accounts |
+| `GET /api/owner/drops` | Drops for the O1 picker (default: next open drop) |
+| `GET /api/owner/metrics` | The four required pilot metrics (section 10) |
+| `POST /api/owner/settings/buffer` | Buffer setting: careful, balanced or never_sell_out (BR-FC8) |
+| `GET /api/owner/orders`, `POST /api/owner/orders/:id/fulfil`, `/cancel` | O2: filter by drop and status; fulfil only from paid_confirmed (BR-O3); cancel with confirmation, setting refund_due on a paid order (BR-O4); history actor owner |
 
 Security basics: HTTPS only, Zod validation, simple rate limit on order creation (deferred to the deployment checklist), HTML escaping, never log phone numbers or tokens, owner routes behind a passcode session (demo only; a real pilot needs proper owner accounts), seed is a CLI script and not an endpoint.
 
@@ -347,7 +356,8 @@ Idempotent: inside one transaction delete rows where `is_sample` is true (childr
 - **Close batch numbers** per past drop: unplanned sold between about 8 and 16, small waste, and made = orders sold + unplanned + wasted.
 - **Live upcoming drop** about 3 days before cut-off with about 30 paid units and about 10 requested units, plus one further open drop with a few paid orders and no requests.
 - **A few opted-in reminders** across channels and frequencies and a few outbox rows. Nothing is ever sent.
-- **Not seeded yet:** `access_tokens` and `forecast_snapshots`.
+- **Forecast snapshots** for completed drops, computed as of each drop's nominal checkpoint with the same function O1 uses (BR-FC10): pace when at least 4 earlier drops have closed by that checkpoint, otherwise baseline. This gives the demo's accuracy metric scored drops.
+- **Not seeded yet:** `access_tokens`.
 - **Verification step** inside the same transaction (any failure rolls everything back): row counts, 12 settings, the made-equals-sold identity, and that the learned pace table is within 8 percentage points of the one used to generate the data. Drops that hit capacity are left out of the learned pace table, because turning customers away cuts off the late orders and would skew the shape.
 - **Later (C6/C7 slice, not built yet):** a "Demo Customer A" with a fixed, printed sample link, so the demo video is repeatable.
 
