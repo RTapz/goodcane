@@ -68,7 +68,7 @@ watch(
 
 function validate(): FieldErrors {
   const found: FieldErrors = {}
-  if (!form.value.firstName.trim()) found.firstName = ['Enter your first name']
+  if (!form.value.firstName.trim()) found.firstName = ['Enter your name']
   const phone = normalisePhone(form.value.phone)
   if (!form.value.phone.trim()) found.phone = ['Enter your phone number']
   else if (!phone.ok) found.phone = [phone.message]
@@ -149,7 +149,7 @@ async function submit() {
       </section>
 
       <form id="details-form" class="space-y-4" novalidate @submit.prevent="submit">
-        <FormField id="first-name" label="First name" :error="errors.firstName?.[0]">
+        <FormField id="first-name" label="Name" :error="errors.firstName?.[0]">
           <template #default="{ invalid, describedBy }">
             <input
               id="first-name"

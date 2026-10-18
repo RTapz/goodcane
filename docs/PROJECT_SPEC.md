@@ -225,7 +225,7 @@ The Demo data button (constraint 8) appears on all pages. Mobile first: single c
 |---|---|---|---|
 | C1 | **Landing: "This drop"** | Next drop date, cut-off countdown, taste picker (Sweet, Spicy, Sour), "GoodCane says" claims note, hours and pickup placeholder. Recognised returning customers see "Welcome back, {first name}. Same again?" | P0 |
 | C2 | **Build order** | Flavour, size, quantity stepper, spaces left, sticky total bar. Hide sold-out items; never dead-end | P0 |
-| C3 | **Your details** | First name, phone, Pickup or Delivery toggle (delivery reveals address, sample area, sample fee) | P0 |
+| C3 | **Your details** | Name (labelled "Name", stored as first name), phone, Pickup or Delivery toggle (delivery reveals address, sample area, sample fee) | P0 |
 | C4 | **Review and pay** | Summary, hold countdown, "No money is taken" notice | P0 |
 | C5 | **Simulated payment** | Success, failed, no response. Retry keeps the hold | P0 |
 | C6 | **Batch card (confirmation)** | "Paid and confirmed", pickup or delivery details, private link with Copy, Send to my WhatsApp, Add to home screen, then the reminder opt-in | P0 |

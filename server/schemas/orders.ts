@@ -12,7 +12,7 @@ const base = {
     .min(1, 'Your order is empty')
     .max(30)
     .refine((lines) => new Set(lines.map((l) => l.menuItemId)).size === lines.length, 'Each item can appear only once'),
-  firstName: z.string().trim().min(1, 'Enter your first name').max(50, 'Use 50 characters or fewer'),
+  firstName: z.string().trim().min(1, 'Enter your name').max(50, 'Use 50 characters or fewer'),
   phone: z.string().trim().min(1, 'Enter your phone number').max(30),
   idempotencyKey: z.uuid()
 }
