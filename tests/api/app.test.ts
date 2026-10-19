@@ -13,6 +13,9 @@ process.env.DATABASE_URL = url
 process.env.NUXT_DATABASE_URL = url
 // A made-up demo number, so the test can check every wa.me link uses it and only it.
 process.env.DEMO_WHATSAPP_NUMBER = '233200000000'
+// A made-up public base, so the test can prove private links are built from it and not from the request host.
+const appUrl = 'https://goodcane.test'
+process.env.NUXT_PUBLIC_APP_URL = appUrl
 // A passcode made up for this run only, so no real one is ever needed or committed.
 const ownerPasscode = crypto.randomUUID()
 process.env.NUXT_OWNER_PASSCODE = ownerPasscode
@@ -189,6 +192,104 @@ describe('payment flow over HTTP (C5, C6)', () => {
     const opened = await fetch(`/c/${'x'.repeat(43)}`, { redirect: 'manual' })
     expect(opened.status).toBe(302)
     expect(opened.headers.get('location')).toBe('/link-invalid')
+  })
+})
+
+describe('private link end to end: C6 link to C7 (BR-L3, BR-L4)', () => {
+  /** Orders, pays and returns the link exactly as C6 shows it, with the paying browser's cookie. */
+  async function paidWithLink() {
+    const next = nextDropResponse.parse(await $fetch('/api/drops/next'))
+    const item = next.menu.find((m) => !m.soldOut)!
+    const created = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        dropId: next.drop!.id,
+        lines: [{ menuItemId: item.id, quantity: 1 }],
+        firstName: 'Linktest',
+        phone: '020 000 0077',
+        fulfilment: 'pickup',
+        idempotencyKey: crypto.randomUUID()
+      })
+    })
+    const cookie = created.headers.getSetCookie().find((c) => c.startsWith('gc_session='))!.split(';')[0]!
+    const { orderId } = (await created.json()) as { orderId: string }
+    const json = { 'content-type': 'application/json', cookie }
+    await fetch(`/api/orders/${orderId}/pay-start`, { method: 'POST', headers: { cookie } })
+    const paid = (await (
+      await fetch('/api/payments/simulate', {
+        method: 'POST',
+        headers: json,
+        body: JSON.stringify({ orderId, reference: `API-${crypto.randomUUID()}`, outcome: 'success' })
+      })
+    ).json()) as { result: string; privateLink: string }
+    expect(paid.result).toBe('confirmed')
+    return { orderId, cookie, item, privateLink: paid.privateLink }
+  }
+
+  /** Opens a path with no cookies, as a new browser would, and returns the redirect and session. */
+  async function openFresh(path: string) {
+    const opened = await fetch(path, { redirect: 'manual' })
+    const setCookie = opened.headers.getSetCookie().find((c) => c.startsWith('gc_session='))
+    return { status: opened.status, location: opened.headers.get('location'), setCookie, cookie: setCookie?.split(';')[0] }
+  }
+
+  it('builds the link from NUXT_PUBLIC_APP_URL, never the request host', async () => {
+    const { privateLink } = await paidWithLink()
+    expect(privateLink).toMatch(new RegExp(`^${appUrl.replace(/\./g, '\\.')}/c/[A-Za-z0-9_-]{43}$`))
+  })
+
+  it('with no cookies: sets a secure session cookie and lands on C7 with the usual order', async () => {
+    const { privateLink, item } = await paidWithLink()
+    const opened = await openFresh(new URL(privateLink).pathname)
+    expect(opened.status).toBe(302)
+    expect(opened.location).toBe('/same-again')
+    expect(opened.setCookie).toMatch(/HttpOnly/i)
+    expect(opened.setCookie).toMatch(/SameSite=Lax/i)
+    expect(opened.setCookie).toMatch(/Path=\//i)
+    expect(opened.setCookie).toMatch(/Secure/i)
+
+    // Follow the redirect with that cookie: C7 renders, it does not bounce to C1.
+    const page = await fetch('/same-again', { headers: { cookie: opened.cookie! }, redirect: 'manual' })
+    expect(page.status).toBe(200)
+    const html = await page.text()
+    expect(html).toContain('Same again, Linktest?')
+    expect(html).toContain(`${item.name} ${item.size}`)
+
+    // Control: without the cookie the same page sends the visitor to C1, so the check above can fail.
+    const anonymous = await fetch('/same-again', { redirect: 'manual' })
+    expect(anonymous.status).toBe(302)
+    expect(anonymous.headers.get('location')).toBe('/')
+  })
+
+  it('a token with one character changed gives the "link invalid" page', async () => {
+    const { privateLink } = await paidWithLink()
+    const path = new URL(privateLink).pathname
+    const last = path.at(-1)!
+    const changed = path.slice(0, -1) + (last === 'A' ? 'B' : 'A')
+    const opened = await openFresh(changed)
+    expect(opened.status).toBe(302)
+    expect(opened.location).toBe('/link-invalid')
+    expect(opened.setCookie).toBeUndefined()
+  })
+
+  it('a second browser can use the same link, and it still works after the first cookie is gone', async () => {
+    const { privateLink, orderId, cookie: payingCookie } = await paidWithLink()
+    const path = new URL(privateLink).pathname
+    const first = await openFresh(path)
+    const second = await openFresh(path)
+    expect(first.location).toBe('/same-again')
+    expect(second.location).toBe('/same-again')
+    expect(second.cookie).not.toBe(first.cookie)
+    // Each session reads the order on its own.
+    for (const c of [first.cookie!, second.cookie!]) {
+      expect((await fetch(`/api/orders/${orderId}`, { headers: { cookie: c } })).status).toBe(200)
+    }
+    // The paying browser clears its cookie: the link alone still gets the customer back in.
+    expect(payingCookie).not.toBe(first.cookie)
+    const again = await openFresh(path)
+    expect(again.location).toBe('/same-again')
+    expect((await fetch(`/api/orders/${orderId}`, { headers: { cookie: again.cookie! } })).status).toBe(200)
   })
 })
 
