@@ -1,10 +1,14 @@
 // pnpm smoke --url <base>: proves a deployed GoodCane Drops works end to end, over HTTP only.
 //
-// It places ONE sample order (pickup, a made-up name and phone), pays it with the simulated
-// payment, reorders once and logs in to the owner screens. Afterwards, reseed to clean up
-// (README, Deployment). The owner passcode is read from $env:OWNER_PASSCODE and is never
-// printed or written anywhere. Exits non-zero if any step fails.
+// It places ONE sample order (pickup, the smoke test customer from server/db/seed/smoke-marker.ts),
+// pays it with the simulated payment, reorders once and logs in to the owner screens. It checks its
+// orders are flagged as sample data, then cancels them as the owner so they use no capacity; a
+// reseed removes them for good (README, Deployment). The owner passcode is read from
+// $env:OWNER_PASSCODE and is never printed or written anywhere. Exits non-zero if any step fails or
+// any required step is skipped.
 import { randomUUID } from 'node:crypto'
+import { SMOKE_FIRST_NAME, SMOKE_PHONE_INPUT } from '../server/db/seed/smoke-marker'
+import { soldOutMessage, summarise, type StepResult } from './smoke-report'
 
 const urlArg = process.argv.indexOf('--url')
 const base = urlArg > 0 ? process.argv[urlArg + 1]?.replace(/\/$/, '') : undefined
@@ -56,30 +60,52 @@ function expect(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
 }
 
-let failures = 0
+async function ownerLogin(jar: CookieJar): Promise<boolean> {
+  const passcode = process.env.OWNER_PASSCODE
+  if (!passcode) return false
+  const r = await call(jar, '/api/owner/login', { method: 'POST', body: { passcode } })
+  return r.status === 200 && jar.has('gc_owner')
+}
+
+const results: StepResult[] = []
 let stopCustomerSteps = false
-async function step(name: string, run: () => Promise<void>, customerFlow = true) {
-  if (customerFlow && stopCustomerSteps) {
-    console.log(`SKIP  ${name} (an earlier step failed)`)
+
+interface StepOptions {
+  /** Customer steps depend on each other: after one fails, the rest are skipped. */
+  customerFlow?: boolean
+  /** A skipped required step fails the run. */
+  required?: boolean
+  /** Returns why the step cannot run (it is then skipped), or null. */
+  needs?: () => string | null
+}
+
+async function step(name: string, run: () => Promise<void>, options: StepOptions = {}) {
+  const { customerFlow = true, required = true, needs } = options
+  const skipReason = customerFlow && stopCustomerSteps ? 'an earlier step failed' : (needs?.() ?? null)
+  if (skipReason) {
+    results.push({ name, status: 'skip', required })
+    console.log(`SKIP  ${name} (${skipReason}${required ? '' : ', not required'})`)
     return
   }
   try {
     await run()
+    results.push({ name, status: 'pass', required })
     console.log(`PASS  ${name}`)
   } catch (error) {
-    failures += 1
+    results.push({ name, status: 'fail', required })
     if (customerFlow) stopCustomerSteps = true
     console.log(`FAIL  ${name}: ${(error as Error).message}`)
   }
 }
 
 console.log(`Smoke test against ${base}`)
-console.log('This writes SAMPLE data only (one pickup order and one reorder). Reseed afterwards to clean up.\n')
+console.log('This writes SAMPLE data only (one pickup order and one reorder) and cancels it at the end.\n')
 
 const browser = new CookieJar()
 let drop: { id: string } | null = null
 let item: { id: string; pricePesewas: number } | null = null
 let orderId = ''
+let reorderId = ''
 let privateLinkPath = ''
 const linkBrowser = new CookieJar()
 let lastLines: { menuItemId: string; quantity: number; unitPricePesewas: number }[] = []
@@ -96,7 +122,28 @@ await step('next drop: open, with an orderable item', async () => {
   expect(r.status === 200 && r.json?.drop, 'no open drop (reseed?)')
   drop = r.json.drop
   item = r.json.menu.find((m: { soldOut: boolean }) => !m.soldOut) ?? null
-  expect(item, 'every item is sold out')
+  if (item) return
+
+  // Explain it: capacity and spaces left are public; paid units and holds need the owner view.
+  const facts = {
+    dropAt: r.json.drop.dropAt as string,
+    capacity: r.json.drop.capacity as number,
+    spacesLeft: r.json.drop.spacesLeft as number,
+    nextDropSpaces: (r.json.nextDrop?.spacesLeft ?? null) as number | null
+  }
+  const owner = new CookieJar()
+  try {
+    if (await ownerLogin(owner)) {
+      const demand = await call(owner, `/api/owner/drop/${r.json.drop.id}/demand`)
+      if (demand.status === 200) {
+        Object.assign(facts, { paidUnits: demand.json.units.paid, heldUnits: demand.json.units.held })
+      }
+      await call(owner, '/api/owner/logout', { method: 'POST' })
+    }
+  } catch {
+    // The explanation is best effort: the step fails either way.
+  }
+  throw new Error(soldOutMessage(facts))
 })
 
 await step('create order: requested, with a session cookie', async () => {
@@ -105,8 +152,8 @@ await step('create order: requested, with a session cookie', async () => {
     body: {
       dropId: drop!.id,
       lines: [{ menuItemId: item!.id, quantity: 1 }],
-      firstName: 'Smoke test',
-      phone: '0200000099',
+      firstName: SMOKE_FIRST_NAME,
+      phone: SMOKE_PHONE_INPUT,
       fulfilment: 'pickup',
       idempotencyKey: randomUUID()
     }
@@ -136,7 +183,7 @@ await step('simulate success: confirmed, private link returned once', async () =
 await step('/api/me: the session knows the customer and the paid order', async () => {
   const r = await call(browser, '/api/me')
   expect(r.status === 200 && r.json?.lastOrder?.orderId === orderId, `status ${r.status}`)
-  expect(!JSON.stringify(r.json).includes('0200000099'), 'full phone number exposed')
+  expect(!JSON.stringify(r.json).includes(SMOKE_PHONE_INPUT), 'full phone number exposed')
 })
 
 await step('open the private link in a new browser: redirect with a session', async () => {
@@ -179,6 +226,7 @@ await step('reorder (C7): same again from the link session', async () => {
     }
   })
   expect(r.status === 201 && r.json?.orderId, `got ${r.status} ${r.json?.statusMessage ?? ''}`)
+  reorderId = r.json.orderId
 })
 
 await step('another cookie: the order is 404 without its session', async () => {
@@ -188,8 +236,13 @@ await step('another cookie: the order is 404 without its session', async () => {
   expect(none.status === 404 && forged.status === 404, `got ${none.status} and ${forged.status}`)
 })
 
-// Owner gate: runs even if a customer step failed.
+// Owner steps: they run even if a customer step failed, so the smoke orders are always cleaned up.
 const owner = new CookieJar()
+const ownerStep = { customerFlow: false }
+let loggedIn = false
+const needsLogin = () => (loggedIn ? null : 'owner login failed')
+const smokeOrderIds = () => [orderId, reorderId].filter(Boolean)
+
 await step(
   'owner routes: 401 without the owner cookie',
   async () => {
@@ -200,46 +253,76 @@ await step(
     const asCustomer = await call(browser, '/api/owner/session')
     expect(asCustomer.status === 401, `customer cookie gave ${asCustomer.status}`)
   },
-  false
+  ownerStep
 )
 
-let loggedIn = false
 await step(
   'owner login with $env:OWNER_PASSCODE',
   async () => {
-    const passcode = process.env.OWNER_PASSCODE
-    expect(passcode, 'OWNER_PASSCODE is not set for this command')
-    const r = await call(owner, '/api/owner/login', { method: 'POST', body: { passcode } })
-    expect(r.status === 200 && owner.has('gc_owner'), `status ${r.status}`)
+    expect(process.env.OWNER_PASSCODE, 'OWNER_PASSCODE is not set for this command')
+    expect(await ownerLogin(owner), 'login refused')
     loggedIn = true
   },
-  false
+  ownerStep
 )
 
 await step(
   'owner demand view loads',
   async () => {
-    expect(loggedIn, 'not logged in')
     const drops = await call(owner, '/api/owner/drops')
     expect(drops.status === 200 && drops.json?.defaultDropId, `drops status ${drops.status}`)
     const demand = await call(owner, `/api/owner/drop/${drops.json.defaultDropId}/demand`)
     expect(demand.status === 200 && 'suggested' in demand.json, `demand status ${demand.status}`)
   },
-  false
+  { ...ownerStep, needs: needsLogin }
+)
+
+await step(
+  'smoke orders are flagged sample',
+  async () => {
+    const r = await call(owner, `/api/owner/orders?drop=${drop!.id}`)
+    expect(r.status === 200, `orders status ${r.status}`)
+    for (const id of smokeOrderIds()) {
+      const order = r.json.orders.find((o: { id: string }) => o.id === id)
+      expect(order, `smoke order ${id} is not in the owner list`)
+      expect(order.isSample === true, 'a smoke order is not flagged sample: the deployment is not in demo mode (NUXT_PUBLIC_DEMO_MODE)')
+    }
+  },
+  { ...ownerStep, needs: () => needsLogin() ?? (smokeOrderIds().length ? null : 'no smoke order was made') }
+)
+
+await step(
+  'clean up: the owner cancels the smoke orders',
+  async () => {
+    for (const id of smokeOrderIds()) {
+      const r = await call(owner, `/api/owner/orders/${id}/cancel`, { method: 'POST', body: { confirm: true } })
+      expect(r.status === 200 && r.json?.status === 'cancelled', `cancelling ${id} gave ${r.status} ${r.json?.statusMessage ?? ''}`)
+    }
+  },
+  {
+    ...ownerStep,
+    // Required only when there is something to clean up (evaluated here, after the customer steps).
+    required: smokeOrderIds().length > 0,
+    needs: () => needsLogin() ?? (smokeOrderIds().length ? null : 'no smoke order was made')
+  }
 )
 
 await step(
   'owner logout: the session stops working',
   async () => {
-    expect(loggedIn, 'not logged in')
     const out = await call(owner, '/api/owner/logout', { method: 'POST' })
     expect(out.status === 200, `logout status ${out.status}`)
     const after = await call(owner, '/api/owner/session')
     expect(after.status === 401, `after logout ${after.status}`)
   },
-  false
+  { ...ownerStep, needs: needsLogin }
 )
 
-console.log(failures === 0 ? '\nAll steps passed.' : `\n${failures} step(s) failed.`)
-console.log('Clean up: reseed (README, Deployment) to remove the smoke test orders.')
-process.exit(failures === 0 ? 0 : 1)
+const summary = summarise(results)
+console.log(`\n${summary.line}`)
+if (summary.requiredSkipped.length > 0) {
+  console.log(`Required steps skipped:\n  - ${summary.requiredSkipped.join('\n  - ')}`)
+}
+console.log(summary.ok ? 'All steps passed.' : 'Smoke test FAILED.')
+console.log('Reseed (README, Deployment) to remove the cancelled smoke test orders for good.')
+process.exit(summary.ok ? 0 : 1)

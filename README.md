@@ -27,7 +27,7 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 | `pnpm db:generate` | Creates a new migration after a schema change |
 | `pnpm db:migrate` | Applies migrations to `MIGRATION_DATABASE_URL`, else `DATABASE_URL`. Refuses a remote database unless `ALLOW_REMOTE_DB=true` |
 | `pnpm seed` | Resets all sample data (see below). Same database choice and remote guard as `db:migrate` |
-| `pnpm smoke --url <base>` | Proves a deployed app works end to end over HTTP (see Deployment). Writes sample data |
+| `pnpm smoke --url <base>` | Proves a deployed app works end to end over HTTP (see Deployment). Writes sample data and cancels its own orders |
 | `pnpm retention` | Retention purge (not built yet) |
 
 ## Sample data (`pnpm seed`)
@@ -39,6 +39,8 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 - Customers are "Sample Customer 01" to "Sample Customer 40" with fake phone numbers `0000000001` to `0000000040`. No real people, prices or messages are involved.
 
 - The final check compares the arrival pattern the seed learns back (`learnPaceTable`) with the one it was generated from (`pickDay`), and fails if any day is more than 8 points off. [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md) explains both functions.
+- It also checks the live drop the way customers see it (paid units and active holds, as `GET /api/drops/next` counts them): 28 to 36 paid units, 9 to 16 requested units and at least one space left. The output shows a "Live drop" line.
+- **Smoke test leftovers** are always removed: every order on a sample drop (flagged or not) and every customer with the smoke marker (first name "Smoke test", phone `+233200000099`, in `server/db/seed/smoke-marker.ts`), even if a deployment outside demo mode wrote them unflagged.
 
 ## Owner screens (demo gate)
 
@@ -101,13 +103,13 @@ In order:
    $env:ALLOW_REMOTE_DB="true"; $env:MIGRATION_DATABASE_URL="<session pooler string>"; pnpm seed; Remove-Item Env:ALLOW_REMOTE_DB, Env:MIGRATION_DATABASE_URL
    ```
 
-5. **Smoke test** the live app. It writes one sample order and one reorder, logs in to the owner screens with the passcode from `$env:OWNER_PASSCODE` (never printed or saved), and prints PASS or FAIL per step:
+5. **Smoke test** the live app. It writes one sample order and one reorder, logs in to the owner screens with the passcode from `$env:OWNER_PASSCODE` (never printed or saved), checks its orders are flagged as sample data, then cancels them as the owner so they use no capacity. It prints PASS, FAIL or SKIP per step and a summary such as `16 passed, 0 failed, 0 skipped (0 required)`. The run fails if any step fails or any required step is skipped. If the live drop is full, the first failing step says why: capacity, paid units and units in active holds.
 
    ```powershell
    $env:OWNER_PASSCODE="<the demo passcode>"; pnpm smoke --url https://<your-app>.vercel.app; Remove-Item Env:OWNER_PASSCODE
    ```
 
-6. **Reseed** (step 4's seed command again) to remove the smoke test's orders. It deletes only sample rows.
+6. **Reseed** (step 4's seed command again) to remove the cancelled smoke test orders for good and reset the live drop to about 30 paid and 10 requested units. Every walk through the deployed demo that pays an order also uses the live drop's spaces, so reseed before a demo or review.
 
 **Rate limiting.** Add one WAF rule in the Vercel dashboard (Firewall, Configure, New Rule, Then: Rate Limit; available on Hobby with 1 rate-limit rule, fixed window of 10 seconds to 10 minutes, keyed by IP). Suggested: path starts with `/api/orders`, method POST, 10 requests per 60 seconds per IP, action 429.
 

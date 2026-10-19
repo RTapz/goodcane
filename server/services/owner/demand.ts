@@ -159,6 +159,8 @@ export async function dropDemand(db: Db, dropId: string, ctx: { now: Date; demoM
       likely: Math.round(likelyUnits(fact.openRequestedUnits, conversion.rate)),
       conversion,
       turnedAway: fact.turnedAwayUnits,
+      // Units in active holds (BR-C2): with paid, what spacesLeft is taken from.
+      held: usage.heldUnits,
       spacesLeft: spacesLeft({ capacity: drop.capacity, ...usage }),
       hitCapacity: hitCapacity(fact.paidUnits, drop.capacity)
     },

@@ -1,7 +1,9 @@
 // Verification run at the end of `pnpm seed`, inside the same transaction.
 // It prints every check, then throws if any failed, which rolls the whole seed back.
-import { and, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, sql } from 'drizzle-orm'
+import { spacesLeft } from '../../domain/capacity'
 import { hitCapacity, learnPaceTable, PACE_DAYS, type ClosedDropPaid, type PaceDay } from '../../domain/forecast'
+import { dropUsage } from '../../services/capacity'
 import type { Db } from '../client'
 import * as schema from '../schema'
 
@@ -11,6 +13,68 @@ export const EXPECTED_SETTINGS = 12
 /** Target cumulative pace in percent (spec section 9). */
 export const TARGET_PACE: Record<PaceDay, number> = { 5: 20, 4: 35, 3: 60, 2: 80, 1: 92, 0: 100 }
 export const PACE_TOLERANCE_POINTS = 8
+/** The live drop after a seed: about 30 paid and about 10 requested units (spec section 9). */
+export const LIVE_PAID_UNITS = { min: 28, max: 36 }
+export const LIVE_REQUESTED_UNITS = { min: 9, max: 16 }
+
+export interface LiveDropState {
+  capacity: number
+  /** Paid and confirmed units, as customers' spaces left counts them. */
+  paidUnits: number
+  /** Units in active holds. */
+  heldUnits: number
+  /** Units in requested orders. */
+  requestedUnits: number
+}
+
+/** Problems with the live drop as customers would see it; empty when it is as the spec says. */
+export function checkLiveDrop(live: LiveDropState): string[] {
+  const problems: string[] = []
+  const { paidUnits, requestedUnits } = live
+  if (paidUnits < LIVE_PAID_UNITS.min || paidUnits > LIVE_PAID_UNITS.max) {
+    problems.push(`live drop has ${paidUnits} paid units, expected ${LIVE_PAID_UNITS.min} to ${LIVE_PAID_UNITS.max}`)
+  }
+  if (requestedUnits < LIVE_REQUESTED_UNITS.min || requestedUnits > LIVE_REQUESTED_UNITS.max) {
+    problems.push(
+      `live drop has ${requestedUnits} requested units, expected ${LIVE_REQUESTED_UNITS.min} to ${LIVE_REQUESTED_UNITS.max}`
+    )
+  }
+  const spaces = spacesLeft({ capacity: live.capacity, confirmedUnits: paidUnits, heldUnits: live.heldUnits })
+  if (spaces < 1) {
+    problems.push(`live drop has no spaces left (capacity ${live.capacity}, ${paidUnits} paid, ${live.heldUnits} held)`)
+  }
+  return problems
+}
+
+/** The first open sample drop whose cut-off is still ahead, counted like GET /api/drops/next. */
+async function liveDropState(tx: Tx, now: Date): Promise<LiveDropState | null> {
+  const [drop] = await tx
+    .select({ id: schema.drops.id, capacity: schema.drops.capacity })
+    .from(schema.drops)
+    .where(
+      and(
+        eq(schema.drops.isSample, true),
+        eq(schema.drops.status, 'open'),
+        gt(schema.drops.cutOffAt, now)
+      )
+    )
+    .orderBy(asc(schema.drops.dropAt))
+    .limit(1)
+  if (!drop) return null
+  const usage = (await dropUsage(tx, [drop.id], now)).get(drop.id) ?? { confirmedUnits: 0, heldUnits: 0 }
+  const [requested] = await tx
+    .select({ units: sql<number>`coalesce(sum(${schema.orderItems.quantity} * ${schema.menuItems.capacityWeight}), 0)::int` })
+    .from(schema.orders)
+    .innerJoin(schema.orderItems, eq(schema.orderItems.orderId, schema.orders.id))
+    .innerJoin(schema.menuItems, eq(schema.menuItems.id, schema.orderItems.menuItemId))
+    .where(and(eq(schema.orders.dropId, drop.id), eq(schema.orders.status, 'requested')))
+  return {
+    capacity: drop.capacity,
+    paidUnits: usage.confirmedUnits,
+    heldUnits: usage.heldUnits,
+    requestedUnits: requested?.units ?? 0
+  }
+}
 
 const countedTables = {
   settings: schema.settings,
@@ -28,7 +92,7 @@ const countedTables = {
   forecast_snapshots: schema.forecastSnapshots
 }
 
-export async function verifySeed(tx: Tx): Promise<void> {
+export async function verifySeed(tx: Tx, now: Date): Promise<void> {
   const failures: string[] = []
 
   // Row counts
@@ -105,6 +169,21 @@ export async function verifySeed(tx: Tx): Promise<void> {
     }
   } catch (error) {
     failures.push(`could not learn the pace table: ${(error as Error).message}`)
+  }
+
+  // The live drop as customers see it: about 30 paid, about 10 requested, spaces left.
+  console.log('\nLive drop')
+  const live = await liveDropState(tx, now)
+  if (!live) {
+    console.log('  none  FAIL')
+    failures.push('no open sample drop with its cut-off ahead')
+  } else {
+    const problems = checkLiveDrop(live)
+    const spaces = spacesLeft({ capacity: live.capacity, confirmedUnits: live.paidUnits, heldUnits: live.heldUnits })
+    console.log(
+      `  capacity ${live.capacity}, ${live.paidUnits} paid, ${live.heldUnits} held, ${live.requestedUnits} requested, ${spaces} spaces left  ${problems.length === 0 ? 'ok' : 'FAIL'}`
+    )
+    failures.push(...problems)
   }
 
   if (failures.length > 0) {
