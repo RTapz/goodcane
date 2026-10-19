@@ -90,17 +90,19 @@ async function act(order: OwnerOrderView, action: 'fulfil' | 'cancel') {
       </ul>
     </template>
 
-    <LazyUModal v-if="toCancel" :open="true" title="Cancel this order?" @update:open="(v: boolean) => { if (!v) toCancel = null }">
-      <template #body>
-        <p class="text-ink">
-          {{ toCancel.firstName ?? 'This customer' }}'s order will be cancelled and its units freed for others.
-          <template v-if="toCancel.status === 'paid_confirmed'">It was paid, so <strong>refund due</strong> will be set.</template>
-        </p>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <UButton class="min-h-11" color="error" label="Yes, cancel the order" :loading="busyId === toCancel.id" @click="act(toCancel!, 'cancel')" />
-          <UButton class="min-h-11" color="neutral" variant="outline" label="Keep it" @click="toCancel = null" />
-        </div>
-      </template>
-    </LazyUModal>
+    <ConfirmDialog
+      v-if="toCancel"
+      title="Cancel this order?"
+      confirm-label="Yes, cancel the order"
+      keep-label="Keep it"
+      :busy="busyId === toCancel.id"
+      @confirm="act(toCancel!, 'cancel')"
+      @close="toCancel = null"
+    >
+      <p>
+        {{ toCancel.firstName ?? 'This customer' }}'s order will be cancelled and its units freed for others.
+        <template v-if="toCancel.status === 'paid_confirmed'">It was paid, so <strong>refund due</strong> will be set.</template>
+      </p>
+    </ConfirmDialog>
   </div>
 </template>

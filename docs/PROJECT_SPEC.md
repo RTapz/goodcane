@@ -166,7 +166,7 @@ There are no passwords. All access uses random tokens whose hashes are stored, n
 - **BR-R5** **One chase maximum:** at most one reminder per customer per drop. If there is no reply and no order, do not send another for that drop.
 - **BR-R6** If an opted-in customer has not started a chat 24 hours after opting in, show the owner a single optional "confirm" nudge, at most once per opt-in event. (Reminders slice: this needs its own column, probably `customers.confirm_nudge_sent_at`; not in the first migration.)
 - **BR-R7** The reminder queue query must exclude: opted out, channel None, inactive for the retention period, deleted, already ordered for that drop, reminder already sent for that drop. Enforce this in the query, not only in the UI.
-- **BR-R8** "Stop reminders" writes an opt-out event immediately. Resubscribe is available only to the customer, on C9, and is a fresh explicit opt-in. The business can never re-enable it. The customer's consent state comes from their latest consent row: none yet, declined (None), opted in, or stopped. A customer with no choice yet, or who chose None, may opt in later from a small "Reminder settings" control on C6 or C7 (a new `opt_in` row, source `c6` or `c7`). After "Stop reminders", opt-in is refused by the server until C9. While opted in, "Stop reminders" is a one-tap control that never shares a button with any order action (BR-X2).
+- **BR-R8** "Stop reminders" writes an opt-out event immediately. Resubscribe is available only to the customer, on C9, and is a fresh explicit opt-in. The business can never re-enable it. The customer's consent state comes from their latest consent row: none yet, declined (None), opted in, or stopped. A customer with no choice yet, or who chose None, may opt in later from a small "Reminder settings" control on C6 or C7 (a new `opt_in` row, source `c6` or `c7`). After "Stop reminders", opt-in is refused by the server unless it comes from C9 (source `c9`, session required): that is the only resubscribe path, a fresh `opt_in` row with nothing preselected. C9 may also make a first choice or turn reminders on after None, like C6 and C7. While opted in, "Stop reminders" is a one-tap control that never shares a button with any order action (BR-X2).
 
 ### 5.8 Data collected and retention
 
@@ -182,7 +182,7 @@ There are no passwords. All access uses random tokens whose hashes are stored, n
 Nothing else: no email, date of birth, precise location, advertising identifiers or analytics trackers.
 
 - **BR-DP1** Inactive means no order and no change to reminder settings for 6 months (a session opening does not count). After that, delete first name, phone, address and tokens, set `deleted_at`, and keep orders anonymised so metrics survive.
-- **BR-DP2** C9 offers "Delete my data now", with confirmation, performing the same purge immediately.
+- **BR-DP2** C9 offers "Delete my data now", with confirmation, performing the same purge immediately. The dialog warns (it does not block) when the customer has an upcoming paid order. The purge (`purgeCustomer` in `server/domain/retention`, applied in one transaction, shared with BR-DP3): first name, phone and reminder choice set to null, `deleted_at` set (kept if already set, so running it twice changes nothing), every access token deleted, queued reminders deleted, and the customer's orders kept with `customer_id` null and `address` null so metrics survive. Consent events are kept as proof of consent. Afterwards the session cookie is cleared and every link stops working.
 - **BR-DP3** Implement as a pure function `purgeInactiveCustomers(now)` run by `pnpm retention` and covered by tests.
 - **Note for the write-up:** designed with the principles of Ghana's Data Protection Act, 2012 (Act 843) in mind. GoodCane, as the data controller, must confirm its registration with the Data Protection Commission and its compliance. This is not legal advice. Sources: https://ghalii.org/akn/gh/act/2012/843 and https://dataprotection.org.gh
 
@@ -244,7 +244,7 @@ The Demo data button (constraint 8) appears on all pages. Mobile first: single c
 | O4 | **Settings** | All sample values in 5.1 and the confirmation mode, menu and prices, delivery areas and fees | P1 |
 | O5 | **Reminder queue** | Due today, one-chase rule, Send opens prefilled chat, marks sent, optional 24-hour nudge | P1 |
 | O6 | **Metrics** | Planned share trend, weekly confirmed orders, repeat-order rate, cancellations and expiries, payment completion rate, forecast versus actual with naive benchmark | P2 (the four required metrics must still exist as numbers on O1 or O6) |
-| O7 | **Customers** | Masked phones, Send new link, delete | P2 |
+| O7 | **Customers** | Masked phones, search by first name, Send new link (shown once, with the hint "Check the last 3 digits against the number that messaged you"), delete (not built: deletion is the customer's, on C9) | P2 |
 
 ### 6.3 C7 "Same again?" acceptance criteria (must all pass)
 1. Opens with no typing, from a private link, a reminder link or a recognised cookie.
@@ -336,8 +336,12 @@ Key endpoints (indicative):
 | `POST /api/me/link` | Make a new private link for the session's customer, revoking the old one (BR-L10); returns it once |
 | `GET /c/:token` | Private link: validates, creates a session cookie, redirects to the latest paid order (BR-L3) |
 | `GET /api/me` | Customer from the session cookie only (404 without one): first name, masked phone, reminder state, and the last paid order's lines, fulfilment, area and fee. No address and no full phone |
-| `POST /api/orders/:id/cancel` | Cancel with confirmation flag |
-| `POST /api/reminders/optin`, `/optout` | Consent events, session required (BR-R1, BR-R2, BR-R8). `optin`: `{ channel: whatsapp or sms, frequency, source: c6 or c7 }`, refused after "Stop reminders". `optout`: `{ choice: none or stop, source }` |
+| `POST /api/orders/:id/cancel` | `{ confirm: true }`. Session must own the order (else 404). Before cut-off only (BR-X3): a request or a paid order becomes `cancelled`; a paid one gets `refund_due` (BR-O4); a lapsed request is already over and is refused. Same locked transaction as the owner cancel, history actor `customer`. A payment arriving for a cancelled order never confirms it |
+| `GET /api/me/orders` | The session's customer's orders for C9: drop date, lines, status, total, whether it can be cancelled. No phone, no address |
+| `POST /api/me/delete` | `{ confirm: true }`, session required: BR-DP2 purge, then clears the cookie |
+| `GET /api/lost-link` | C8: the prefilled "lost my link" text (first name only, never a token) and a wa.me URL to `DEMO_WHATSAPP_NUMBER`, or null when it is empty |
+| `GET /api/owner/customers?q=`, `POST /api/owner/customers/:id/link` | O7: customers by first name with masked phones only; Send new link (BR-L6) returns the new link once and a prefilled chat to `DEMO_WHATSAPP_NUMBER` |
+| `POST /api/reminders/optin`, `/optout` | Consent events, session required (BR-R1, BR-R2, BR-R8). `optin`: `{ channel: whatsapp or sms, frequency, source: c6, c7 or c9 }`, refused after "Stop reminders" unless the source is `c9` (BR-R8). `optout`: `{ choice: none or stop, source }` |
 | `GET /api/owner/drop/:id/demand` | Demand view numbers |
 | `POST /api/owner/drop/:id/close` | Close batch |
 | `POST /api/owner/login`, `/logout`, `GET /api/owner/session` | Demo owner gate: passcode from `OWNER_PASSCODE` compared in constant time; `gc_owner` cookie (HttpOnly, SameSite=Lax) holding a random token stored only as a hash; 5 failed attempts per 15 minutes per IP gives 429. Every other `/api/owner/*` route answers 401 with no detail without it. A live service would use real owner accounts |

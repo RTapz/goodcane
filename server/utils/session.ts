@@ -18,6 +18,11 @@ export function setSessionCookie(event: H3Event, rawToken: string) {
   })
 }
 
+/** Removes the cookie from this browser (after "Delete my data now"), with the same flags it was set with. */
+export function clearSessionCookie(event: H3Event) {
+  deleteCookie(event, COOKIE_NAME, { httpOnly: true, sameSite: 'lax', secure: !import.meta.dev, path: '/' })
+}
+
 /** The customer behind a valid session cookie, or null. Slides the expiry at most once a day. */
 export async function getSessionCustomerId(event: H3Event, now = new Date()): Promise<string | null> {
   const raw = getCookie(event, COOKIE_NAME)

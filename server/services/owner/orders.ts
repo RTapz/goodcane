@@ -4,7 +4,8 @@ import { maskPhone } from '../../domain/identity/phone'
 import { decideFulfil, decideOwnerCancel, type OwnerActionDecision } from '../../domain/orders/owner-actions'
 import { isRequestLapsed, type OrderStatus } from '../../domain/orders/requests'
 import type { Db } from '../../db/client'
-import { customers, drops, menuItems, orderHistory, orderItems, orders, payments } from '../../db/schema'
+import { customers, drops, menuItems, orderItems, orders, payments } from '../../db/schema'
+import { writeTransition } from '../orders/transition'
 import { readSettings } from '../settings'
 
 const LIST_LIMIT = 200
@@ -107,24 +108,8 @@ async function applyOwnerAction(
     const decision = decide(order.status)
     if (!decision.ok) return { kind: 'not_allowed', status: order.status }
 
-    await tx
-      .update(orders)
-      .set({
-        status: decision.to,
-        refundDue: order.refundDue || decision.refundDue,
-        // A cancelled request's hold, if any, stops counting straight away.
-        holdExpiresAt: decision.to === 'cancelled' ? null : order.holdExpiresAt
-      })
-      .where(eq(orders.id, orderId))
-    await tx.insert(orderHistory).values({
-      orderId,
-      fromStatus: order.status,
-      toStatus: decision.to,
-      actor: 'owner',
-      createdAt: now,
-      isSample: demoMode
-    })
-    return { kind: 'done', status: decision.to, refundDue: order.refundDue || decision.refundDue }
+    const done = await writeTransition(tx, order, decision, { actor: 'owner', now, demoMode })
+    return { kind: 'done', ...done }
   })
 }
 

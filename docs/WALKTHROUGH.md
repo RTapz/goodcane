@@ -387,3 +387,57 @@ Start at the green box: **Make about 60 units** is the suggestion, built from th
 5. Over 4 scored drops the forecast's MAPE is 8.3% and the naive benchmark is 6.0%. What does that tell you, and what would you check next?
 
 Answers: (1) 79 units; turning people away cut off the late orders, so its arrival shape looks too early. (2) Halfway between: 27.5%, so 14 / 0.275 = about 51. (3) The forecast must only use what was known at the checkpoint, or its accuracy would be flattered. (4) The buffer and suggested production change; paid, likely, the projection and its range do not. (5) The forecast is not yet better than "same as last time"; check the bias (consistently low or high?) and whether more drops are needed before trusting either.
+
+
+## 7. Deleting a customer's data, and consent that only grows
+
+Two rules protect the customer after they have ordered: they can delete their details at any time (BR-DP2), and every reminder choice they make is kept as a new row, never edited (BR-R2).
+
+### purgeCustomer: what "Delete my data now" changes
+
+`purgeCustomer(customer, now)` in `server/domain/retention/purge.ts` is a pure function. It does not touch the database: it returns a description of what must change, and `applyPurge` in `server/services/retention.ts` carries it out in one transaction with the customer row locked. The same function will be used by `pnpm retention` for customers inactive for 6 months (BR-DP1, not built yet), so both paths delete exactly the same things.
+
+What it says:
+
+- **The customer row stays, but empty.** First name, phone and reminder choice become null, and `deleted_at` is set. The row is kept so orders and consent rows still point at something valid.
+- **Orders are kept, anonymised.** Each order gets `customer_id` null and `address` null. Units, prices, dates and statuses stay, so planned share, the forecast and the pilot metrics do not change when someone leaves.
+- **Every token is deleted.** Private links, sessions and reminder links. The session lookup and the link lookup also reject a customer with `deleted_at`, so even a token that somehow survived would not work.
+- **Queued reminders are deleted.** Reminders already sent stay as the record of what was sent.
+- **Consent rows are kept.** They are the proof of what the customer agreed to, and they hold no name or phone.
+
+**Idempotent** means running it twice is the same as running it once. If `deleted_at` is already set, `purgeCustomer` keeps the first time instead of replacing it with now. Everything else it sets is already null or already gone, so the second run changes nothing. That matters because a nightly job may meet a customer who already deleted their own data.
+
+### Worked example
+
+Ama paid for 2 bottles for delivery to "12 Sample Street", opted in to WhatsApp reminders, and has a reminder queued for the next drop. On Monday she taps **Delete my data now** and confirms.
+
+| Before | After |
+|---|---|
+| Customer: Ama, +233 20 000 0012, WhatsApp, every drop | Customer: all null, `deleted_at` Monday |
+| Order: Ama's id, 12 Sample Street, 2 bottles, paid | Order: no customer, no address, 2 bottles, paid |
+| Link token and session token | None |
+| Queued reminder for the next drop | None |
+| Consent: opt_in, WhatsApp, every drop | Unchanged |
+
+Her browser's cookie is cleared in the same response. Her old link now lands on "This link no longer works". O1 still counts her 2 bottles.
+
+### Consent is append-only
+
+`consent_events` only ever gets new rows. The customer's current state is read from the **latest** row: none yet, declined (they chose None), opted in, or stopped. Nothing is updated in place, so the history of every choice survives, which is what proof of consent needs.
+
+The rules (`server/domain/reminders/consent.ts`):
+
+- C6, C7 and C9 can make a first choice, or turn reminders on after None.
+- **Stop reminders** writes an `opt_out` row straight away.
+- After a stop, an opt-in is refused unless it comes from **C9** (source `c9`), with the customer's own session. That is **Resubscribe**: a fresh, explicit opt-in with nothing preselected.
+- No owner route can write a consent row, so the business can never turn reminders back on.
+
+### Check your understanding
+
+1. Why does the purge keep the customer row instead of deleting it?
+2. A customer deletes their data, and the nightly retention job later meets the same customer. What happens to `deleted_at`, and why does that matter?
+3. After a purge, which numbers on the owner's O1 screen change, and which stay the same?
+4. A customer stopped reminders on C6. Where, and only where, can they turn them back on, and what row does that write?
+5. Why is "update the customer's latest consent row" not allowed, even though it would be simpler?
+
+Answers: (1) Orders and consent rows still need a valid reference, and the row now holds nothing personal. (2) It keeps the first deletion time, because `purgeCustomer` is idempotent; a second run must not rewrite history or fail. (3) None of the unit numbers change: the orders are kept, only unlinked from the person. (4) On C9 Manage, with their own session (source `c9`); it writes a new `opt_in` row, and the earlier `opt_out` stays. (5) Consent is proof: editing a row would erase what the customer agreed to before, so every change is a new row.

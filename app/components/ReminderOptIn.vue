@@ -4,7 +4,7 @@
 // No message is ever sent by the app.
 import type { Me } from '~~/server/services/me'
 
-const props = defineProps<{ source: 'c6' | 'c7'; compact?: boolean }>()
+const props = defineProps<{ source: 'c6' | 'c7' | 'c9'; compact?: boolean }>()
 const { me, refresh } = useMe()
 
 type Channel = 'whatsapp' | 'sms' | 'none'
@@ -18,7 +18,9 @@ const message = ref<string | null>(null)
 const failed = ref(false)
 
 const state = computed<Me['reminders']['state'] | null>(() => me.value?.reminders.state ?? null)
-const canChoose = computed(() => state.value === 'none_yet' || state.value === 'declined')
+// After "Stop reminders", only Manage (C9) offers a fresh opt-in (BR-R8).
+const resubscribing = computed(() => state.value === 'stopped' && props.source === 'c9')
+const canChoose = computed(() => state.value === 'none_yet' || state.value === 'declined' || resubscribing.value)
 const channelOptions = computed(() => [
   { value: 'whatsapp' as const, label: 'WhatsApp' },
   { value: 'sms' as const, label: 'SMS' },
@@ -89,26 +91,28 @@ function stop() {
       />
     </template>
 
-    <p v-else-if="state === 'stopped'" class="text-ink">
-      Reminders are off. You can turn them back on in Manage (coming soon).
+    <p v-else-if="state === 'stopped' && !resubscribing" class="text-ink">
+      Reminders are off. You can turn them back on in
+      <NuxtLink to="/manage" class="font-semibold text-sage underline">Manage</NuxtLink>.
     </p>
 
     <template v-else-if="canChoose">
       <p v-if="state === 'declined'" class="text-ink">Reminders are off (you chose None).</p>
+      <p v-if="resubscribing" class="text-ink">Reminders are off because you stopped them.</p>
 
       <UButton
         v-if="!open"
         color="neutral"
         variant="outline"
         class="min-h-11"
-        :label="state === 'declined' ? 'Turn reminders on' : 'Choose reminders'"
+        :label="resubscribing ? 'Resubscribe' : state === 'declined' ? 'Turn reminders on' : 'Choose reminders'"
         @click="open = true"
       />
 
       <form v-else class="space-y-3" @submit.prevent="save">
         <fieldset>
           <legend class="font-semibold text-ink">
-            {{ state === 'declined' ? 'Turn reminders on by' : 'Remind me before the next drop by' }}
+            {{ resubscribing ? 'Resubscribe to reminders by' : state === 'declined' ? 'Turn reminders on by' : 'Remind me before the next drop by' }}
           </legend>
           <div class="mt-1 grid gap-2" :class="channelOptions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'">
             <label

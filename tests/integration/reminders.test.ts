@@ -70,6 +70,20 @@ describe('None and Stop (BR-R1, BR-R8)', () => {
     expect((await rows()).length).toBe(count)
   })
 
+  it('C9 resubscribes after Stop with a fresh opt_in row; earlier rows stay as they were', async () => {
+    await optIn(db, customerId, { channel: 'whatsapp', frequency: 'every_drop', source: 'c6' }, at(1))
+    await optOut(db, customerId, { choice: 'stop', source: 'c6' }, at(2))
+    const before = await rows()
+    expect(await optIn(db, customerId, { channel: 'sms', frequency: 'monthly', source: 'c9' }, at(3))).toEqual({
+      kind: 'ok',
+      state: 'opted_in'
+    })
+    const after = await rows()
+    expect(after.slice(0, before.length)).toEqual(before)
+    expect(after.map((r) => `${r.action}:${r.channel}:${r.source}`)).toEqual(['opt_in:whatsapp:c6', 'opt_out:null:c6', 'opt_in:sms:c9'])
+    expect(await customer()).toMatchObject({ reminderChannel: 'sms', reminderFrequency: 'monthly' })
+  })
+
   it('refuses a second opt-in, Stop without an opt-in, and None after a choice', async () => {
     expect((await optOut(db, customerId, { choice: 'stop', source: 'c6' }, at(1))).kind).toBe('refused')
     await optIn(db, customerId, { channel: 'whatsapp', frequency: 'every_drop', source: 'c6' }, at(2))

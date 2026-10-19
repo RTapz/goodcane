@@ -5,5 +5,6 @@
       It may have been replaced by a newer link. You can still order for the next drop.
     </p>
     <UButton to="/" block size="xl" class="min-h-12" label="See this drop" />
+    <LostLinkHelp />
   </div>
 </template>

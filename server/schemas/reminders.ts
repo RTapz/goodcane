@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
-const source = z.enum(['c6', 'c7'])
+// c9 (Manage) is the only source that may resubscribe after "Stop reminders" (BR-R8).
+const source = z.enum(['c6', 'c7', 'c9'])
 
 export const optInBody = z.strictObject({
   channel: z.enum(['whatsapp', 'sms']),

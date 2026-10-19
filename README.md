@@ -50,6 +50,13 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 - **`TRUST_PROXY`** (default `false`). When `false`, the lockout counts attempts against the address of the connection. On Vercel every request arrives from Vercel's own servers, so set it to `true` there: the lockout then reads the client address from `x-vercel-forwarded-for`, which Vercel sets itself. Other forwarded headers such as `X-Forwarded-For` are ignored in both modes, because any client can fill them in. Do not set it to `true` anywhere else, or clients could choose their own address by sending that header.
 - The forecast is explained step by step in [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md), section 6.
 
+## Customer screens beyond ordering
+
+- `/manage` (C9): order history, **Cancel this order** before cut-off (paid orders get refund due), reminder settings with **Stop reminders** and **Resubscribe** (only here, BR-R8), and **Delete my data now** (BR-DP2). It works only with this phone's session, which the private link creates; never by phone number.
+- `/link-invalid` and the home page (for a phone with no session) offer **Lost your link? Message GoodCane**: a prefilled chat to `DEMO_WHATSAPP_NUMBER` asking for the first name only, or the text to copy when that is empty.
+- `/about` (C0): what is real and simulated, the assumptions, data practices and the forecast honesty note. Linked from the footer.
+- `/owner/customers` (O7): masked phones, search by first name, and **Send new link**, which revokes the old link and shows the new one once.
+
 ## Known limitations
 
 - **Session after a lost response.** Orders are idempotent: a repeated submission returns the same order (see [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md), section 3). But if the first response is lost and only the replay's response arrives, the browser can end up without a session cookie, because the server stores only the token's hash and cannot send it again. The customer then sees "We can't find this order on this device" and can place the order again; the earlier request lapses after 2 days. The same applies to the private link after payment: if the response carrying it is lost, the customer can open C6 and use **Make a new link** (which revokes the old one).

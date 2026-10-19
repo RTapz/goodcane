@@ -415,6 +415,128 @@ describe('returning customer: /api/me, reminders and the C7 two-step reorder', (
   })
 })
 
+describe('C0 About, C8 lost link and C9 Manage', () => {
+  /** A customer who paid one order; returns the cookie and the private link. */
+  async function paidWithSession(phone: string) {
+    const next = nextDropResponse.parse(await $fetch('/api/drops/next'))
+    const item = next.menu.find((m) => !m.soldOut)!
+    const created = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        dropId: next.drop!.id,
+        lines: [{ menuItemId: item.id, quantity: 1 }],
+        firstName: 'Managetest',
+        phone,
+        fulfilment: 'pickup',
+        idempotencyKey: crypto.randomUUID()
+      })
+    })
+    const cookie = created.headers.getSetCookie().find((c) => c.startsWith('gc_session='))!.split(';')[0]!
+    const { orderId } = (await created.json()) as { orderId: string }
+    const headers = { 'content-type': 'application/json', cookie }
+    await fetch(`/api/orders/${orderId}/pay-start`, { method: 'POST', headers })
+    const paid = (await (
+      await fetch('/api/payments/simulate', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ orderId, reference: `API-${crypto.randomUUID()}`, outcome: 'success' })
+      })
+    ).json()) as { privateLink: string }
+    return { cookie, headers, orderId, item, linkPath: new URL(paid.privateLink).pathname }
+  }
+
+  it('C0 renders for everyone, with the data protection sources', async () => {
+    const html = await $fetch<string>('/about')
+    expect(html).toContain('About this demo')
+    expect(html).toContain('https://ghalii.org/akn/gh/act/2012/843')
+    expect(html).toContain('https://dataprotection.org.gh')
+    expect(html).not.toContain('—') // no em dashes (style rule)
+  })
+
+  it('C8: the lost-link message asks for the first name, uses only the demo number and has no token', async () => {
+    const help = (await $fetch('/api/lost-link')) as { text: string; whatsappUrl: string | null }
+    expect(help.text).toMatch(/first name/i)
+    expect(help.whatsappUrl).toMatch(/^https:\/\/wa\.me\/233200000000\?text=/)
+    expect(help.text).not.toMatch(/\/c\//)
+    const page = await $fetch<string>('/link-invalid')
+    expect(page).toContain('Lost your link?')
+  })
+
+  it('C9 without a session: the page asks for the private link, and the data routes are 404', async () => {
+    const html = await $fetch<string>('/manage')
+    expect(html).toContain('Open your private link')
+    expect(html).toContain('Lost your link?')
+    expect((await fetch('/api/me/orders')).status).toBe(404)
+    const del = await fetch('/api/me/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"confirm":true}' })
+    expect(del.status).toBe(404)
+    const resubscribe = await fetch('/api/reminders/optin', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ channel: 'sms', frequency: 'monthly', source: 'c9' })
+    })
+    expect(resubscribe.status).toBe(404)
+  })
+
+  it('C9 with a session: masked phone and own orders, never the full phone', async () => {
+    const a = await paidWithSession('020 000 0031')
+    const html = await (await fetch('/manage', { headers: { cookie: a.cookie } })).text()
+    expect(html).toContain('Managetest')
+    expect(html).toMatch(/031/)
+    expect(html).not.toContain('0000031')
+    const orders = (await (await fetch('/api/me/orders', { headers: { cookie: a.cookie } })).json()) as {
+      orders: { id: string; status: string; lines: { name: string }[] }[]
+    }
+    expect(orders.orders.map((o) => o.id)).toEqual([a.orderId])
+    expect(orders.orders[0]).toMatchObject({ status: 'paid_confirmed', lines: [{ name: a.item.name }] })
+    expect(JSON.stringify(orders)).not.toMatch(/0000031|address/)
+  })
+
+  it('C9 resubscribe after Stop works only from C9', async () => {
+    const a = await paidWithSession('020 000 0032')
+    const post = (path: string, body: unknown) => fetch(path, { method: 'POST', headers: a.headers, body: JSON.stringify(body) })
+    await post('/api/reminders/optin', { channel: 'whatsapp', frequency: 'every_drop', source: 'c6' })
+    expect((await post('/api/reminders/optout', { choice: 'stop', source: 'c9' })).status).toBe(200)
+    expect((await post('/api/reminders/optin', { channel: 'sms', frequency: 'monthly', source: 'c7' })).status).toBe(409)
+    expect((await post('/api/reminders/optin', { channel: 'sms', frequency: 'monthly', source: 'c9' })).status).toBe(200)
+  })
+
+  it('C9 cancel: own order only, with confirm; a paid order gets refund due and frees its spaces', async () => {
+    const a = await paidWithSession('020 000 0034')
+    const cancel = (headers: Record<string, string>, body: string) =>
+      fetch(`/api/orders/${a.orderId}/cancel`, { method: 'POST', headers, body })
+    const listed = (await (await fetch('/api/me/orders', { headers: { cookie: a.cookie } })).json()) as {
+      orders: { id: string; canCancel: boolean }[]
+    }
+    expect(listed.orders[0]).toMatchObject({ id: a.orderId, canCancel: true })
+    expect((await cancel({ 'content-type': 'application/json' }, '{"confirm":true}')).status).toBe(404)
+    const stranger = await paidWithSession('020 000 0035')
+    expect((await cancel(stranger.headers, '{"confirm":true}')).status).toBe(404)
+    expect((await cancel(a.headers, '{}')).status).toBe(400)
+    const before = nextDropResponse.parse(await $fetch('/api/drops/next')).drop!.spacesLeft
+    const done = await cancel(a.headers, '{"confirm":true}')
+    expect(done.status).toBe(200)
+    expect(await done.json()).toEqual({ status: 'cancelled', refundDue: true })
+    expect(nextDropResponse.parse(await $fetch('/api/drops/next')).drop!.spacesLeft).toBe(before + 1)
+    expect((await cancel(a.headers, '{"confirm":true}')).status).toBe(409)
+  })
+
+  it('Delete my data now: needs confirm, clears the cookie, and the old cookie and link stop working', async () => {
+    const a = await paidWithSession('020 000 0033')
+    expect((await fetch('/api/me/delete', { method: 'POST', headers: a.headers, body: '{}' })).status).toBe(400)
+    const deleted = await fetch('/api/me/delete', { method: 'POST', headers: a.headers, body: '{"confirm":true}' })
+    expect(deleted.status).toBe(200)
+    expect(deleted.headers.getSetCookie().find((c) => c.startsWith('gc_session='))).toMatch(/Max-Age=0/i)
+    expect((await fetch('/api/me', { headers: { cookie: a.cookie } })).status).toBe(404)
+    expect((await fetch(`/api/orders/${a.orderId}`, { headers: { cookie: a.cookie } })).status).toBe(404)
+    const opened = await fetch(a.linkPath, { redirect: 'manual' })
+    expect(opened.headers.get('location')).toBe('/link-invalid')
+    // The order itself is kept, anonymised, for the numbers.
+    const [row] = await sql<{ customer_id: string | null }[]>`select "customer_id" from "orders" where "id" = ${a.orderId}`
+    expect(row).toEqual({ customer_id: null })
+  })
+})
+
 describe('deployment basics (spec 8)', () => {
   it('GET /api/health answers ok with the database status, and nothing else', async () => {
     const response = await fetch('/api/health')
@@ -459,7 +581,9 @@ describe('owner gate over HTTP (spec 8)', () => {
     ['GET', '/api/owner/drop/00000000-0000-4000-8000-000000000000/demand'],
     ['POST', '/api/owner/settings/buffer'],
     ['POST', '/api/owner/orders/00000000-0000-4000-8000-000000000000/fulfil'],
-    ['POST', '/api/owner/orders/00000000-0000-4000-8000-000000000000/cancel']
+    ['POST', '/api/owner/orders/00000000-0000-4000-8000-000000000000/cancel'],
+    ['GET', '/api/owner/customers'],
+    ['POST', '/api/owner/customers/00000000-0000-4000-8000-000000000000/link']
   ]
   const login = (passcode: string) =>
     fetch('/api/owner/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode }) })
@@ -525,6 +649,54 @@ describe('owner gate over HTTP (spec 8)', () => {
 
     expect((await fetch('/api/owner/logout', { method: 'POST', headers: { cookie } })).status).toBe(200)
     expect((await fetch('/api/owner/session', { headers: { cookie } })).status).toBe(401)
+  })
+
+  it('O7: masked phones only, and Send new link replaces the customer\'s link (BR-L6)', async () => {
+    // A customer who paid and got a private link.
+    const next = nextDropResponse.parse(await $fetch('/api/drops/next'))
+    const created = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        dropId: next.drop!.id,
+        lines: [{ menuItemId: next.menu.find((m) => !m.soldOut)!.id, quantity: 1 }],
+        firstName: 'Ownerlinktest',
+        phone: '020 000 0041',
+        fulfilment: 'pickup',
+        idempotencyKey: crypto.randomUUID()
+      })
+    })
+    const customer = created.headers.getSetCookie().find((c) => c.startsWith('gc_session='))!.split(';')[0]!
+    const { orderId } = (await created.json()) as { orderId: string }
+    const headers = { 'content-type': 'application/json', cookie: customer }
+    await fetch(`/api/orders/${orderId}/pay-start`, { method: 'POST', headers })
+    const paid = (await (
+      await fetch('/api/payments/simulate', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ orderId, reference: `API-${crypto.randomUUID()}`, outcome: 'success' })
+      })
+    ).json()) as { privateLink: string }
+    const oldPath = new URL(paid.privateLink).pathname
+
+    const cookie = await ownerCookie()
+    const list = (await (await fetch('/api/owner/customers?q=ownerlink', { headers: { cookie } })).json()) as {
+      customers: { id: string; firstName: string; maskedPhone: string }[]
+    }
+    expect(list.customers).toHaveLength(1)
+    expect(list.customers[0]!.maskedPhone).toMatch(/041$/)
+    expect(JSON.stringify(list)).not.toMatch(/0000041|\/c\/|token/i)
+
+    const sent = await fetch(`/api/owner/customers/${list.customers[0]!.id}/link`, { method: 'POST', headers: { cookie } })
+    expect(sent.status).toBe(200)
+    const body = (await sent.json()) as { privateLink: string; whatsappUrl: string | null }
+    expect(body.privateLink).toMatch(/\/c\/[A-Za-z0-9_-]{43}$/)
+    expect(body.privateLink).not.toBe(paid.privateLink)
+    expect(body.whatsappUrl).toMatch(/^https:\/\/wa\.me\/233200000000\?text=/)
+    // The old link stops working; the new one opens C7.
+    expect((await fetch(oldPath, { redirect: 'manual' })).headers.get('location')).toBe('/link-invalid')
+    expect((await fetch(new URL(body.privateLink).pathname, { redirect: 'manual' })).headers.get('location')).toBe('/same-again')
+    await fetch('/api/owner/logout', { method: 'POST', headers: { cookie } })
   })
 
   it('5 failed attempts in 15 minutes gives 429, even for the right passcode', async () => {

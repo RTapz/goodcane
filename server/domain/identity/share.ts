@@ -15,3 +15,14 @@ export function whatsappShareUrl(demoNumber: string, text: string): string | nul
   if (!digits) return null
   return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`
 }
+
+/**
+ * C8 "Lost your link?": the message a customer sends GoodCane. First name only: no phone,
+ * no token, no link, so nothing in it can open anyone's orders (BR-L7). The owner replies
+ * with a new link from O7 (BR-L6).
+ */
+export const LOST_LINK_TEXT = 'Hello GoodCane, I have lost my GoodCane Drops link. My first name is: '
+
+export function lostLinkHelp(demoNumber: string): { text: string; whatsappUrl: string | null } {
+  return { text: LOST_LINK_TEXT, whatsappUrl: whatsappShareUrl(demoNumber, LOST_LINK_TEXT) }
+}

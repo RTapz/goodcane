@@ -75,6 +75,8 @@ onBeforeUnmount(clearNotice)
       <TastePicker v-if="drop" />
       <ClaimsNote />
       <PickupInfo :start="data.pickupWindow.start" :end="data.pickupWindow.end" />
+      <!-- C8: no session on this phone, so offer a way back that never uses a typed phone number. -->
+      <LazyLostLinkHelp v-if="!me" />
 
       <div v-if="drop" class="gc-bottom-bar fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)]">
         <div class="mx-auto w-full max-w-md px-4 py-3">

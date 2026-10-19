@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { privateLinkUrl, whatsappShareUrl } from '../../../server/domain/identity/share'
+import { LOST_LINK_TEXT, lostLinkHelp, privateLinkUrl, whatsappShareUrl } from '../../../server/domain/identity/share'
+
+describe('lost link help (C8)', () => {
+  it('asks for the first name only and never carries a token or a link', () => {
+    expect(LOST_LINK_TEXT).toMatch(/first name/i)
+    expect(LOST_LINK_TEXT).not.toMatch(/\/c\/|https?:|phone|number/i)
+  })
+
+  it('opens a chat with the demo number, or gives just the text when none is set', () => {
+    expect(lostLinkHelp('233200000000')).toEqual({
+      text: LOST_LINK_TEXT,
+      whatsappUrl: `https://wa.me/233200000000?text=${encodeURIComponent(LOST_LINK_TEXT)}`
+    })
+    expect(lostLinkHelp('')).toEqual({ text: LOST_LINK_TEXT, whatsappUrl: null })
+  })
+})
 
 describe('privateLinkUrl (BR-L1)', () => {
   it('builds /c/{token} without a double slash', () => {

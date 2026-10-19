@@ -20,6 +20,14 @@ describe('canOptIn (BR-R8)', () => {
     expect(canOptIn('stopped')).toBe(false)
     expect(canOptIn('opted_in')).toBe(false)
   })
+
+  it('lets only C9 resubscribe after Stop reminders, as a fresh opt-in', () => {
+    expect(canOptIn('stopped', 'c9')).toBe(true)
+    expect(canOptIn('stopped', 'c6')).toBe(false)
+    expect(canOptIn('stopped', 'c7')).toBe(false)
+    expect(canOptIn('opted_in', 'c9')).toBe(false)
+    expect(canOptIn('none_yet', 'c9')).toBe(true)
+  })
 })
 
 describe('canOptOut', () => {

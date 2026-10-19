@@ -1,14 +1,14 @@
 // Reminder opt-in and opt-out (BR-R1, BR-R2, BR-R8). Consent rows are only ever inserted.
 // The customer row is locked so two taps cannot interleave and write contradictory rows.
 import { eq } from 'drizzle-orm'
-import { canOptIn, canOptOut, consentState, type ConsentState } from '../domain/reminders/consent'
+import { canOptIn, canOptOut, consentState, type ConsentSource, type ConsentState } from '../domain/reminders/consent'
 import type { Db, Tx } from '../db/client'
 import { consentEvents, customers } from '../db/schema'
 import { latestConsent } from './me'
 
 type Channel = 'whatsapp' | 'sms'
 type Frequency = 'every_drop' | 'every_second_drop' | 'monthly'
-type Source = 'c6' | 'c7'
+type Source = ConsentSource
 
 export type ConsentResult = { kind: 'ok'; state: ConsentState } | { kind: 'refused'; state: ConsentState } | { kind: 'not_found' }
 
@@ -27,7 +27,7 @@ export async function optIn(
   return db.transaction(async (tx) => {
     const state = await lockedState(tx, customerId)
     if (!state) return { kind: 'not_found' }
-    if (!canOptIn(state)) return { kind: 'refused', state }
+    if (!canOptIn(state, choice.source)) return { kind: 'refused', state }
     await tx.insert(consentEvents).values({
       customerId,
       action: 'opt_in',
