@@ -547,6 +547,34 @@ export function buildSampleData({ rand, now, pickDay = defaultPickDay }: BuildOp
     })
   }
 
+  // Examples the reminder query must leave out (BR-R7), made from two one-off customers with no
+  // consent choice yet and no order on the live drop: one who chose None, one who deleted their data.
+
+  const consented = new Set(data.consentEvents.map((e) => e.customerId))
+  const [choseNone, deletedOne] = sampleCustomers.filter(
+    (c) => c.lastActiveAt > 0 && !consented.has(c.row.id) && !liveCustomers.has(c.row.id)
+  )
+  if (!choseNone || !deletedOne) throw new Error('seed: no one-off customers left for the reminder examples')
+  const noneAt = new Date(Math.min((choseNone.firstPaidAt ?? choseNone.lastActiveAt) + 10 * MINUTE, now.getTime() - MINUTE))
+  data.consentEvents.push({
+    id: newId(),
+    customerId: choseNone.row.id,
+    action: 'opt_out',
+    channel: 'none',
+    frequency: null,
+    source: 'c6',
+    createdAt: noneAt,
+    isSample: true
+  })
+  choseNone.row.reminderChannel = 'none'
+  touch(choseNone, noneAt)
+  // "Delete my data now" (BR-DP2): nothing personal left, orders kept without the customer.
+  const deletedAt = new Date(now.getTime() - DAY)
+  Object.assign(deletedOne.row, { firstName: null, phone: null, reminderChannel: null, reminderFrequency: null, deletedAt })
+  for (const order of data.orders) {
+    if (order.customerId === deletedOne.row.id) Object.assign(order, { customerId: null, address: null })
+  }
+
   // Customers: only those who placed at least one order.
 
   data.customers = sampleCustomers

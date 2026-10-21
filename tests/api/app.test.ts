@@ -451,7 +451,7 @@ describe('C0 About, C8 lost link and C9 Manage', () => {
     expect(html).toContain('About this demo')
     expect(html).toContain('https://ghalii.org/akn/gh/act/2012/843')
     expect(html).toContain('https://dataprotection.org.gh')
-    expect(html).not.toContain('—') // no em dashes (style rule)
+    expect(html).not.toContain(String.fromCharCode(0x2014)) // no em dashes (style rule)
   })
 
   it('C8: the lost-link message asks for the first name, uses only the demo number and has no token', async () => {
@@ -583,7 +583,9 @@ describe('owner gate over HTTP (spec 8)', () => {
     ['POST', '/api/owner/orders/00000000-0000-4000-8000-000000000000/fulfil'],
     ['POST', '/api/owner/orders/00000000-0000-4000-8000-000000000000/cancel'],
     ['GET', '/api/owner/customers'],
-    ['POST', '/api/owner/customers/00000000-0000-4000-8000-000000000000/link']
+    ['POST', '/api/owner/customers/00000000-0000-4000-8000-000000000000/link'],
+    ['GET', '/api/owner/reminders'],
+    ['POST', '/api/owner/reminders/00000000-0000-4000-8000-000000000000/send']
   ]
   const login = (passcode: string) =>
     fetch('/api/owner/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode }) })
@@ -696,6 +698,58 @@ describe('owner gate over HTTP (spec 8)', () => {
     // The old link stops working; the new one opens C7.
     expect((await fetch(oldPath, { redirect: 'manual' })).headers.get('location')).toBe('/link-invalid')
     expect((await fetch(new URL(body.privateLink).pathname, { redirect: 'manual' })).headers.get('location')).toBe('/same-again')
+    await fetch('/api/owner/logout', { method: 'POST', headers: { cookie } })
+  })
+
+  it('O5: the queue shows masked phones only; Send gives a reminder link once; /r/ opens C7', async () => {
+    const cookie = await ownerCookie()
+    expect(await (await fetch('/owner/reminders', { headers: { cookie } })).text()).toContain('Reminders')
+
+    const queue = (await (await fetch('/api/owner/reminders', { headers: { cookie } })).json()) as {
+      demoMode: boolean
+      drop: { id: string } | null
+      dueNow: { reminderId: string; customerId: string; maskedPhone: string }[]
+      comingUp: { reminderId: string; customerId: string; maskedPhone: string }[]
+    }
+    // The seeded live drop is 3 days before cut-off, so its reminders are coming up (BR-R4).
+    expect(queue.drop).not.toBeNull()
+    expect(queue.comingUp.length).toBeGreaterThan(0)
+    const row = queue.comingUp[0]!
+    const phones = await sql<{ phone: string }[]>`select "phone" from "customers" where "phone" is not null`
+    const text = JSON.stringify(queue)
+    for (const { phone } of phones) expect(text).not.toContain(phone)
+
+    // Demo mode: "Send early (demo)" works on a Coming up row.
+    expect(queue.demoMode).toBe(true)
+    const send = () => fetch(`/api/owner/reminders/${row.reminderId}/send`, { method: 'POST', headers: { cookie } })
+    const sent = await send()
+    expect(sent.status).toBe(200)
+    const body = (await sent.json()) as { text: string; link: string; whatsappUrl: string | null; channel: string }
+    expect(body.link).toMatch(new RegExp(`^${appUrl.replace(/\./g, '\\.')}/r/[A-Za-z0-9_-]{43}$`))
+    expect(body.text).toContain(body.link)
+    if (body.channel === 'whatsapp') expect(body.whatsappUrl).toMatch(/^https:\/\/wa\.me\/233200000000\?text=/)
+    for (const { phone } of phones) expect(JSON.stringify(body)).not.toContain(phone)
+    // One chase: the same row cannot be sent again.
+    expect((await send()).status).toBe(409)
+
+    // The reminder link: a session cookie and C7, like the private link.
+    const path = new URL(body.link).pathname
+    const opened = await fetch(path, { redirect: 'manual' })
+    expect(opened.status).toBe(302)
+    expect(opened.headers.get('location')).toBe('/same-again')
+    expect(opened.headers.getSetCookie().find((c) => c.startsWith('gc_session='))).toMatch(/HttpOnly/i)
+
+    // A changed token, or the same token after its cut-off, gives nothing.
+    const changed = path.slice(0, -1) + (path.endsWith('A') ? 'B' : 'A')
+    for (const bad of [changed, '/r/short']) {
+      const r = await fetch(bad, { redirect: 'manual' })
+      expect(r.headers.get('location'), bad).toBe('/link-invalid')
+      expect(r.headers.getSetCookie().some((c) => c.startsWith('gc_session=')), bad).toBe(false)
+    }
+    await sql`update "access_tokens" set "expires_at" = now() - interval '1 minute' where "kind" = 'reminder'`
+    const expired = await fetch(path, { redirect: 'manual' })
+    expect(expired.headers.get('location')).toBe('/link-invalid')
+    expect(expired.headers.getSetCookie().some((c) => c.startsWith('gc_session='))).toBe(false)
     await fetch('/api/owner/logout', { method: 'POST', headers: { cookie } })
   })
 

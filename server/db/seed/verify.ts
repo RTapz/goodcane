@@ -1,9 +1,10 @@
 // Verification run at the end of `pnpm seed`, inside the same transaction.
 // It prints every check, then throws if any failed, which rolls the whole seed back.
-import { and, asc, eq, gt, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, isNotNull, or, sql } from 'drizzle-orm'
 import { spacesLeft } from '../../domain/capacity'
 import { hitCapacity, learnPaceTable, PACE_DAYS, type ClosedDropPaid, type PaceDay } from '../../domain/forecast'
 import { dropUsage } from '../../services/capacity'
+import { eligibleForReminder } from '../../services/reminders-queue'
 import type { Db } from '../client'
 import * as schema from '../schema'
 
@@ -184,6 +185,34 @@ export async function verifySeed(tx: Tx, now: Date): Promise<void> {
       `  capacity ${live.capacity}, ${live.paidUnits} paid, ${live.heldUnits} held, ${live.requestedUnits} requested, ${spaces} spaces left  ${problems.length === 0 ? 'ok' : 'FAIL'}`
     )
     failures.push(...problems)
+  }
+
+  // The reminder queue for the live drop (BR-R3, BR-R7): at least one row, Due now or Coming up,
+  // and none of the examples the query must leave out (None, deleted).
+  console.log('\nReminder queue')
+  const [liveDrop] = await tx
+    .select({ id: schema.drops.id })
+    .from(schema.drops)
+    .where(and(eq(schema.drops.isSample, true), eq(schema.drops.status, 'open'), gt(schema.drops.cutOffAt, now)))
+    .orderBy(asc(schema.drops.dropAt))
+    .limit(1)
+  if (liveDrop) {
+    const eligible = new Set((await eligibleForReminder(tx, liveDrop.id, now, { keepQueued: true })).map((c) => c.customerId))
+    const queued = await tx
+      .select({ customerId: schema.reminders.customerId })
+      .from(schema.reminders)
+      .where(and(eq(schema.reminders.dropId, liveDrop.id), eq(schema.reminders.status, 'queued')))
+    const shown = queued.filter((q) => eligible.has(q.customerId)).length
+    const excluded = await tx
+      .select({ id: schema.customers.id })
+      .from(schema.customers)
+      .where(or(eq(schema.customers.reminderChannel, 'none'), isNotNull(schema.customers.deletedAt)))
+    const leaked = excluded.filter((c) => eligible.has(c.id)).length
+    const ok = shown > 0 && leaked === 0 && excluded.length >= 2
+    console.log(`  ${shown} queued for the live drop, ${excluded.length} excluded examples, ${leaked} wrongly eligible  ${ok ? 'ok' : 'FAIL'}`)
+    if (shown === 0) failures.push('the reminder queue for the live drop is empty')
+    if (excluded.length < 2) failures.push('the reminder queue examples (None, deleted) are missing')
+    if (leaked > 0) failures.push(`${leaked} customers the reminder queue must leave out are eligible`)
   }
 
   if (failures.length > 0) {

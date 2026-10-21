@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LOST_LINK_TEXT, lostLinkHelp, privateLinkUrl, whatsappShareUrl } from '../../../server/domain/identity/share'
+import { LOST_LINK_TEXT, lostLinkHelp, privateLinkUrl, reminderLinkUrl, whatsappShareUrl } from '../../../server/domain/identity/share'
 
 describe('lost link help (C8)', () => {
   it('asks for the first name only and never carries a token or a link', () => {
@@ -16,10 +16,14 @@ describe('lost link help (C8)', () => {
   })
 })
 
-describe('privateLinkUrl (BR-L1)', () => {
+describe('privateLinkUrl (BR-L1) and reminderLinkUrl (BR-L5)', () => {
   it('builds /c/{token} without a double slash', () => {
     expect(privateLinkUrl('http://localhost:3000/', 'abc_123')).toBe('http://localhost:3000/c/abc_123')
     expect(privateLinkUrl('https://drops.example', 'abc')).toBe('https://drops.example/c/abc')
+  })
+
+  it('builds /r/{token} the same way', () => {
+    expect(reminderLinkUrl('https://drops.example/', 'abc')).toBe('https://drops.example/r/abc')
   })
 })
 

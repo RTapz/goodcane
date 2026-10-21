@@ -182,13 +182,27 @@ describe.each([
         .sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0))
       const latest = events.at(-1)
       if (!latest || latest.action === 'opt_out') {
-        expect(c.reminderChannel).toBeNull()
+        // None sets the channel to none (BR-R1); Stop clears it.
+        expect(c.reminderChannel).toBe(latest?.channel === 'none' ? 'none' : null)
       } else {
         expect(c.reminderChannel).toBe(latest.channel)
         expect(c.reminderFrequency).toBe(latest.frequency)
       }
     }
-    expect(data.consentEvents.filter((e) => e.action === 'opt_out')).toHaveLength(2)
+    // Two "Stop reminders" and one None.
+    expect(data.consentEvents.filter((e) => e.action === 'opt_out' && e.channel === null)).toHaveLength(2)
+    expect(data.consentEvents.filter((e) => e.action === 'opt_out' && e.channel === 'none')).toHaveLength(1)
+  })
+
+  it('includes examples the reminder query must leave out: a None customer and a deleted one (BR-R7)', () => {
+    const none = data.customers.filter((c) => c.reminderChannel === 'none')
+    expect(none).toHaveLength(1)
+    const deleted = data.customers.filter((c) => c.deletedAt)
+    expect(deleted).toHaveLength(1)
+    expect(deleted[0]).toMatchObject({ firstName: null, phone: null, reminderChannel: null })
+    // A deleted customer's orders are kept, anonymised (BR-DP2), and nothing points at them.
+    expect(data.orders.some((o) => o.customerId === deleted[0]!.id)).toBe(false)
+    expect(data.reminders.some((r) => r.customerId === deleted[0]!.id || r.customerId === none[0]!.id)).toBe(false)
   })
 })
 

@@ -129,6 +129,12 @@ describe('pnpm seed cleanup', () => {
     await expect(db.transaction((tx) => verifySeed(tx, now))).rejects.toThrow(/no spaces left/)
   })
 
+  it('verification rejects an empty reminder queue for the live drop', async () => {
+    await seed()
+    await db.update(customers).set({ reminderChannel: null, reminderFrequency: null })
+    await expect(db.transaction((tx) => verifySeed(tx, now))).rejects.toThrow(/reminder queue/)
+  })
+
   it('verification accepts the freshly seeded live drop', async () => {
     await seed()
     await expect(db.transaction((tx) => verifySeed(tx, now))).resolves.toBeUndefined()

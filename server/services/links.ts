@@ -48,10 +48,11 @@ export async function issueLink(db: DbOrTx, customerId: string, now: Date, demoM
 }
 
 /**
- * Opening a private link (BR-L3): checks the hash, revocation and expiry, and that the customer
- * still exists, then creates a session. Returns where to land: the latest paid order, if any.
+ * Opening a private link (BR-L3, `/c/`) or a reminder link (BR-L5, `/r/`): checks the hash, the
+ * kind, revocation and expiry, and that the customer still exists, then creates a session.
+ * Returns where to land: the latest paid order, if any.
  */
-export async function redeemLink(db: Db, raw: string, now: Date, demoMode: boolean) {
+export async function redeemLink(db: Db, raw: string, now: Date, demoMode: boolean, kind: 'link' | 'reminder' = 'link') {
   return db.transaction(async (tx) => {
     const [link] = await tx
       .select({ customerId: accessTokens.customerId })
@@ -60,7 +61,7 @@ export async function redeemLink(db: Db, raw: string, now: Date, demoMode: boole
       .where(
         and(
           eq(accessTokens.tokenHash, hashToken(raw)),
-          eq(accessTokens.kind, 'link'),
+          eq(accessTokens.kind, kind),
           isNull(accessTokens.revokedAt),
           or(isNull(accessTokens.expiresAt), gt(accessTokens.expiresAt, now)),
           isNull(customers.deletedAt)

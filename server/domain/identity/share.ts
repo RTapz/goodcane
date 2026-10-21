@@ -5,6 +5,11 @@ export function privateLinkUrl(appUrl: string, token: string): string {
   return `${appUrl.replace(/\/+$/, '')}/c/${token}`
 }
 
+/** The reminder link (BR-L5): `{appUrl}/r/{token}`, valid until that drop's cut-off. */
+export function reminderLinkUrl(appUrl: string, token: string): string {
+  return `${appUrl.replace(/\/+$/, '')}/r/${token}`
+}
+
 /**
  * A wa.me chat with prefilled text. In demo mode the only number allowed is
  * DEMO_WHATSAPP_NUMBER (constraint 3), so callers pass that and nothing else.

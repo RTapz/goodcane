@@ -441,3 +441,55 @@ The rules (`server/domain/reminders/consent.ts`):
 5. Why is "update the customer's latest consent row" not allowed, even though it would be simpler?
 
 Answers: (1) Orders and consent rows still need a valid reference, and the row now holds nothing personal. (2) It keeps the first deletion time, because `purgeCustomer` is idempotent; a second run must not rewrite history or fail. (3) None of the unit numbers change: the orders are kept, only unlinked from the person. (4) On C9 Manage, with their own session (source `c9`); it writes a new `opt_in` row, and the earlier `opt_out` stays. (5) Consent is proof: editing a row would erase what the customer agreed to before, so every change is a new row.
+
+## 8. Who gets a reminder: the BR-R7 query
+
+The owner's reminder queue (O5) must never offer a reminder to someone who should not get one. The rules are BR-R7, and they live in one database query, `eligibleForReminder` in `server/services/reminders-queue.ts`, not only in the screen. A screen can hide a row; only the query decides who is in it.
+
+### What it does
+
+For one drop, it returns the customers who may be reminded. A customer is **left out** if any of these is true:
+
+- **Their latest consent row is not an opt-in.** That covers "Stop reminders", None and never choosing. Consent is append-only (section 7), so "latest" is the newest row by time.
+- **Their channel is not WhatsApp or SMS**, for example None.
+- **They have been inactive longer than the retention period** (sample: 6 months, the `retention_months` setting).
+- **They deleted their data** (`deleted_at` is set).
+- **They already ordered for this drop:** a paid or fulfilled order, or a request that has not lapsed. A lapsed or cancelled request does not count: they wanted to order and did not finish, which is exactly who a reminder is for.
+- **They already have a reminder row for this drop**, queued or sent. This is the one-chase rule (BR-R5).
+
+Then the frequency is applied: every drop always; every second drop only when the drop just before was not reminded; monthly only when no reminder went out in the 28 days before this one is due.
+
+### Three layers for one chase
+
+"At most one reminder per customer per drop" is enforced three times, so no single mistake can break it:
+
+1. The database refuses a second row: `reminders` has a unique key on customer and drop.
+2. The query leaves out anyone with a row for the drop.
+3. Send only turns a `queued` row into `sent` (`WHERE status = 'queued'`), so a double tap sends nothing twice.
+
+### Lazy, no cron
+
+Nothing runs on a timer. When the owner opens O5, the queue is built for the next drop: every eligible customer gets a `queued` row (an insert that ignores rows that already exist). Then the queued rows are listed **after checking each customer again**, so someone who ordered or opted out since being queued simply drops off. Before the due time (2 days before cut-off) rows show under Coming up; from then until cut-off, under Due now.
+
+### Worked example
+
+The next drop's cut-off is Saturday. Four opted-in customers:
+
+| Customer | Situation | In the queue? |
+|---|---|---|
+| Ama | Every drop, no order yet | Yes |
+| Kofi | Paid for Saturday on Tuesday | No: already ordered |
+| Efua | Every second drop, reminded for Tuesday's drop | No: frequency |
+| Yaw | Requested on Monday, never paid, request lapsed | Yes: a lapsed request is not an order |
+
+On Thursday the owner presses Send for Ama. Her row becomes `sent`, and she gets a link to `/r/...` that works until Saturday's cut-off. If Ama orders on Friday, nothing changes for her. If she does not, she is still never reminded again for Saturday's drop.
+
+### Check your understanding
+
+1. Why is the one-chase rule in the query and the database, not just a disabled button on the screen?
+2. A customer pressed "Stop reminders" last week and has a paid order from yesterday. Which rule leaves them out of the queue?
+3. Why does a lapsed request not count as "already ordered"?
+4. Ama was queued on Wednesday and paid on Thursday morning. What happens to her row on O5 on Thursday afternoon, and why can it not be sent?
+5. A monthly customer was reminded 20 days before this drop's due time. Are they in the queue, and when would they next be?
+
+Answers: (1) A screen can be bypassed (a second tab, a direct request, a bug); the query and the unique key hold whatever the screen does. (2) Their latest consent row is an opt-out, so they are out before the order is even looked at. (3) It means they wanted to order but did not finish: that is the person a reminder helps. (4) It is not shown, because the queue checks each customer again on every read, and Send re-checks too, so it is refused as not eligible. (5) No; they become eligible for a drop whose due time is at least 28 days after that last reminder.

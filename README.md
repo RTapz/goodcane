@@ -56,6 +56,7 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 - `/link-invalid` and the home page (for a phone with no session) offer **Lost your link? Message GoodCane**: a prefilled chat to `DEMO_WHATSAPP_NUMBER` asking for the first name only, or the text to copy when that is empty.
 - `/about` (C0): what is real and simulated, the assumptions, data practices and the forecast honesty note. Linked from the footer.
 - `/owner/customers` (O7): masked phones, search by first name, and **Send new link**, which revokes the old link and shows the new one once.
+- `/owner/reminders` (O5): the reminder queue for the next drop, built when the page is opened (no cron). **Due now** from 2 days before cut-off; **Coming up** before that, with **Send early (demo)** in demo mode only. Send opens a prefilled chat with a fresh `/r/<token>` link that works until that drop's cut-off, and marks the reminder sent: one per customer per drop. The 24-hour confirm nudge (BR-R6) is designed, not built.
 
 ## Known limitations
 
