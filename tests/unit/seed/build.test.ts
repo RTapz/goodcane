@@ -7,6 +7,8 @@ import {
   type SampleData
 } from '../../../server/db/seed/build'
 import { createRand, randInt, type Rand } from '../../../server/db/seed/random'
+import { DEMO_CUSTOMER_NAME, DEMO_CUSTOMER_TOKEN } from '../../../server/domain/identity/demo-customer'
+import { hashToken } from '../../../server/services/tokens'
 
 const DAY = 24 * 60 * 60 * 1000
 const now = new Date('2026-10-15T09:00:00Z')
@@ -203,6 +205,53 @@ describe.each([
     // A deleted customer's orders are kept, anonymised (BR-DP2), and nothing points at them.
     expect(data.orders.some((o) => o.customerId === deleted[0]!.id)).toBe(false)
     expect(data.reminders.some((r) => r.customerId === deleted[0]!.id || r.customerId === none[0]!.id)).toBe(false)
+  })
+})
+
+describe('Demo Customer A (BR-L4 exception, demo mode only)', () => {
+  const withDemo = buildSampleData({ rand: createRand(SEED), now, demoCustomer: true })
+  const plain = build()
+  const demo = withDemo.customers.find((c) => c.firstName === DEMO_CUSTOMER_NAME)!
+
+  it('is not created without demo mode', () => {
+    expect(plain.customers.some((c) => c.firstName === DEMO_CUSTOMER_NAME)).toBe(false)
+    expect(plain.accessTokens).toEqual([])
+    expect(plain.customers).toHaveLength(SAMPLE_CUSTOMER_COUNT)
+  })
+
+  it('is a sample customer with a fake phone, opted in to WhatsApp reminders every drop', () => {
+    expect(demo).toMatchObject({ phone: '0000000099', isSample: true, reminderChannel: 'whatsapp', reminderFrequency: 'every_drop' })
+    expect(withDemo.consentEvents.filter((e) => e.customerId === demo.id)).toMatchObject([
+      { action: 'opt_in', channel: 'whatsapp', frequency: 'every_drop', isSample: true }
+    ])
+    expect(withDemo.customers).toHaveLength(SAMPLE_CUSTOMER_COUNT + 1)
+  })
+
+  it('has a fulfilled usual order of 2 bottles on a completed drop that did not sell out, and nothing on the open drops', () => {
+    const own = withDemo.orders.filter((o) => o.customerId === demo.id)
+    expect(own).toHaveLength(1)
+    expect(own[0]).toMatchObject({ status: 'fulfilled', isSample: true })
+    const drop = withDemo.drops.find((d) => d.id === own[0]!.dropId)!
+    expect(drop).toMatchObject({ status: 'completed', capacity: 70 })
+    expect(withDemo.orderItems.filter((l) => l.orderId === own[0]!.id)).toMatchObject([{ quantity: 2 }])
+    expect(withDemo.payments.filter((p) => p.orderId === own[0]!.id && p.outcome === 'success')).toHaveLength(1)
+  })
+
+  it('keeps the close batch identity on that drop: made = sold + unplanned + wasted', () => {
+    const units = unitsByOrder(withDemo)
+    const own = withDemo.orders.find((o) => o.customerId === demo.id)!
+    const drop = withDemo.drops.find((d) => d.id === own.dropId)!
+    const sold = withDemo.orders
+      .filter((o) => o.dropId === drop.id && o.status === 'fulfilled')
+      .reduce((sum, o) => sum + (units.get(o.id) ?? 0), 0)
+    expect(drop.unitsMade).toBe(sold + (drop.unplannedSold ?? 0) + (drop.unitsWasted ?? 0))
+  })
+
+  it('has one sample private link, stored as the hash of the fixed published token', () => {
+    expect(withDemo.accessTokens).toEqual([
+      expect.objectContaining({ customerId: demo.id, kind: 'link', tokenHash: hashToken(DEMO_CUSTOMER_TOKEN), expiresAt: null, isSample: true })
+    ])
+    expect(DEMO_CUSTOMER_TOKEN).toMatch(/^[A-Za-z0-9_-]{43}$/)
   })
 })
 

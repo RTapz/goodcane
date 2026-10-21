@@ -16,7 +16,10 @@ import {
 import { runSeed } from '../../server/db/seed/run'
 import { SMOKE_FIRST_NAME, SMOKE_PHONE } from '../../server/db/seed/smoke-marker'
 import { LIVE_PAID_UNITS, verifySeed } from '../../server/db/seed/verify'
+import { DEMO_CUSTOMER_NAME, DEMO_CUSTOMER_TOKEN } from '../../server/domain/identity/demo-customer'
 import { dropUsage } from '../../server/services/capacity'
+import { redeemLink } from '../../server/services/links'
+import { applyPurge } from '../../server/services/retention'
 import { resetTestDatabase } from '../support/reset-test-db'
 import { testDatabaseUrl } from '../support/test-db'
 import { insertOrder } from './owner-fixtures'
@@ -133,6 +136,24 @@ describe('pnpm seed cleanup', () => {
     await seed()
     await db.update(customers).set({ reminderChannel: null, reminderFrequency: null })
     await expect(db.transaction((tx) => verifySeed(tx, now))).rejects.toThrow(/reminder queue/)
+  })
+
+  it('Demo Customer A: only in demo mode, its fixed link opens a returning customer, and a reseed brings it back', async () => {
+    // Demo mode off: no Demo Customer A and no fixed link.
+    await seed()
+    expect(await db.select().from(customers).where(eq(customers.firstName, DEMO_CUSTOMER_NAME))).toEqual([])
+    expect(await redeemLink(db, DEMO_CUSTOMER_TOKEN, now, true)).toBeNull()
+
+    // Demo mode on: the link works and lands a customer with a paid order.
+    await db.transaction((tx) => runSeed(tx, now, { demoMode: true }))
+    const opened = await redeemLink(db, DEMO_CUSTOMER_TOKEN, now, true)
+    expect(opened?.latestPaidOrderId).toEqual(expect.any(String))
+
+    // "Delete my data now" kills the link until the next reseed.
+    await db.transaction((tx) => applyPurge(tx, opened!.customerId, now))
+    expect(await redeemLink(db, DEMO_CUSTOMER_TOKEN, now, true)).toBeNull()
+    await db.transaction((tx) => runSeed(tx, now, { demoMode: true }))
+    expect(await redeemLink(db, DEMO_CUSTOMER_TOKEN, now, true)).not.toBeNull()
   })
 
   it('verification accepts the freshly seeded live drop', async () => {

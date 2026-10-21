@@ -75,6 +75,7 @@ async function insertSampleData(tx: Tx, data: SampleData) {
   await insertInChunks(tx, schema.menuItems, data.menuItems)
   await insertInChunks(tx, schema.drops, data.drops)
   await insertInChunks(tx, schema.customers, data.customers)
+  await insertInChunks(tx, schema.accessTokens, data.accessTokens)
   await insertInChunks(tx, schema.orders, data.orders)
   await insertInChunks(tx, schema.orderItems, data.orderItems)
   await insertInChunks(tx, schema.payments, data.payments)
@@ -85,11 +86,15 @@ async function insertSampleData(tx: Tx, data: SampleData) {
   await insertInChunks(tx, schema.forecastSnapshots, data.forecastSnapshots)
 }
 
-/** The whole seed, inside the caller's transaction. Throws (so the caller rolls back) if verification fails. */
-export async function runSeed(tx: Tx, now: Date) {
-  const data = buildSampleData({ rand: createRand(SEED), now })
+/**
+ * The whole seed, inside the caller's transaction. Throws (so the caller rolls back) if verification
+ * fails. `demoMode` adds Demo Customer A and its fixed link (BR-L4 exception); never outside demo mode.
+ */
+export async function runSeed(tx: Tx, now: Date, options: { demoMode?: boolean } = {}) {
+  const demoMode = options.demoMode ?? false
+  const data = buildSampleData({ rand: createRand(SEED), now, demoCustomer: demoMode })
   await deleteSampleRows(tx)
   await upsertSettings(tx)
   await insertSampleData(tx, data)
-  await verifySeed(tx, now)
+  await verifySeed(tx, now, { demoMode })
 }

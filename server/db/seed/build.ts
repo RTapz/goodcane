@@ -1,7 +1,10 @@
 // Builds all sample rows for spec section 9 as plain objects. Pure: no database,
 // no clock. Same `rand` seed and `now` give exactly the same rows.
 import { getCutOff } from '../../domain/drops'
+import { DEMO_CUSTOMER_NAME, DEMO_CUSTOMER_PHONE, DEMO_CUSTOMER_TOKEN } from '../../domain/identity/demo-customer'
+import { hashToken } from '../../services/tokens'
 import type {
+  accessTokens,
   consentEvents,
   customers,
   drops,
@@ -41,6 +44,7 @@ export type OrderHistoryRow = WithId<typeof orderHistory.$inferInsert>
 export type TurnedAwayRow = WithId<typeof turnedAway.$inferInsert>
 export type ConsentEventRow = WithId<typeof consentEvents.$inferInsert>
 export type ReminderRow = WithId<typeof reminders.$inferInsert>
+export type AccessTokenRow = WithId<typeof accessTokens.$inferInsert>
 
 export interface SampleData {
   drops: DropRow[]
@@ -53,6 +57,8 @@ export interface SampleData {
   turnedAway: TurnedAwayRow[]
   consentEvents: ConsentEventRow[]
   reminders: ReminderRow[]
+  /** Only Demo Customer A's fixed private link, in demo mode (BR-L4 exception). */
+  accessTokens: AccessTokenRow[]
   forecastSnapshots: ForecastSnapshotRow[]
 }
 
@@ -61,6 +67,8 @@ export interface BuildOptions {
   now: Date
   /** Defaults to the real pickDay. Tests can pass their own. */
   pickDay?: (rand: Rand) => number
+  /** Demo mode only: add Demo Customer A with the fixed private link (spec section 9). */
+  demoCustomer?: boolean
 }
 
 interface SampleCustomer {
@@ -96,7 +104,7 @@ interface NewOrder {
   endedAt?: Date
 }
 
-export function buildSampleData({ rand, now, pickDay = defaultPickDay }: BuildOptions): SampleData {
+export function buildSampleData({ rand, now, pickDay = defaultPickDay, demoCustomer = false }: BuildOptions): SampleData {
   const data: SampleData = {
     drops: [],
     menuItems: [],
@@ -108,6 +116,7 @@ export function buildSampleData({ rand, now, pickDay = defaultPickDay }: BuildOp
     turnedAway: [],
     consentEvents: [],
     reminders: [],
+    accessTokens: [],
     forecastSnapshots: []
   }
   const leadTimeDays = settingsDefaults.lead_time_days
@@ -573,6 +582,66 @@ export function buildSampleData({ rand, now, pickDay = defaultPickDay }: BuildOp
   Object.assign(deletedOne.row, { firstName: null, phone: null, reminderChannel: null, reminderFrequency: null, deletedAt })
   for (const order of data.orders) {
     if (order.customerId === deletedOne.row.id) Object.assign(order, { customerId: null, address: null })
+  }
+
+  // Demo Customer A (demo mode only, BR-L4 exception): a returning customer with a fixed link, a
+  // fulfilled usual order on a drop that did not sell out, opted in, and no order on the live drop.
+
+  if (demoCustomer) {
+    const usual = orderable.find((item) => item.name === 'Raw cane' && item.size === '330ml') ?? orderable[0]!
+    const demo: SampleCustomer = {
+      row: {
+        id: newId(),
+        firstName: DEMO_CUSTOMER_NAME,
+        phone: DEMO_CUSTOMER_PHONE,
+        reminderChannel: 'whatsapp',
+        reminderFrequency: 'every_drop',
+        lastActiveAt: now,
+        deletedAt: null,
+        isSample: true
+      },
+      usual,
+      lastActiveAt: 0,
+      firstPaidAt: null
+    }
+    sampleCustomers.push(demo)
+    // The second-newest completed drop: the newest one sold out.
+    const dropRow = data.drops.filter((d) => d.status === 'completed').at(-2)!
+    const drop: DropRef = { id: dropRow.id, dropAt: dropRow.dropAt, cutOffAt: dropRow.cutOffAt, deliveryShare: 0 }
+    const paidAt = new Date(drop.cutOffAt.getTime() - 2 * DAY)
+    const units = addOrder({
+      customer: demo,
+      drop,
+      kind: 'fulfilled',
+      lines: [{ item: usual, quantity: 2 }],
+      createdAt: new Date(paidAt.getTime() - 10 * MINUTE),
+      paidAt,
+      endedAt: new Date(drop.dropAt.getTime() + 2 * HOUR)
+    })
+    // Close batch identity: these bottles were made and sold too.
+    dropRow.unitsMade = (dropRow.unitsMade ?? 0) + units
+    const optInAt = new Date(paidAt.getTime() + 5 * MINUTE)
+    data.consentEvents.push({
+      id: newId(),
+      customerId: demo.row.id,
+      action: 'opt_in',
+      channel: 'whatsapp',
+      frequency: 'every_drop',
+      source: 'c6',
+      createdAt: optInAt,
+      isSample: true
+    })
+    touch(demo, optInAt)
+    data.accessTokens.push({
+      id: newId(),
+      customerId: demo.row.id,
+      kind: 'link',
+      tokenHash: hashToken(DEMO_CUSTOMER_TOKEN),
+      expiresAt: null,
+      revokedAt: null,
+      dropId: null,
+      isSample: true
+    })
   }
 
   // Customers: only those who placed at least one order.

@@ -1,6 +1,8 @@
 // Verification run at the end of `pnpm seed`, inside the same transaction.
 // It prints every check, then throws if any failed, which rolls the whole seed back.
-import { and, asc, eq, gt, isNotNull, or, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, inArray, isNotNull, or, sql } from 'drizzle-orm'
+import { DEMO_CUSTOMER_TOKEN } from '../../domain/identity/demo-customer'
+import { hashToken } from '../../services/tokens'
 import { spacesLeft } from '../../domain/capacity'
 import { hitCapacity, learnPaceTable, PACE_DAYS, type ClosedDropPaid, type PaceDay } from '../../domain/forecast'
 import { dropUsage } from '../../services/capacity'
@@ -93,7 +95,7 @@ const countedTables = {
   forecast_snapshots: schema.forecastSnapshots
 }
 
-export async function verifySeed(tx: Tx, now: Date): Promise<void> {
+export async function verifySeed(tx: Tx, now: Date, options: { demoMode?: boolean } = {}): Promise<void> {
   const failures: string[] = []
 
   // Row counts
@@ -213,6 +215,25 @@ export async function verifySeed(tx: Tx, now: Date): Promise<void> {
     if (shown === 0) failures.push('the reminder queue for the live drop is empty')
     if (excluded.length < 2) failures.push('the reminder queue examples (None, deleted) are missing')
     if (leaked > 0) failures.push(`${leaked} customers the reminder queue must leave out are eligible`)
+  }
+
+  // Demo Customer A (demo mode only): the fixed link must lead to a customer with a paid order.
+  if (options.demoMode) {
+    console.log('\nDemo Customer A')
+    const [link] = await tx
+      .select({ customerId: schema.accessTokens.customerId })
+      .from(schema.accessTokens)
+      .where(and(eq(schema.accessTokens.tokenHash, hashToken(DEMO_CUSTOMER_TOKEN)), eq(schema.accessTokens.kind, 'link')))
+    const [paid] = link
+      ? await tx
+          .select({ id: schema.orders.id })
+          .from(schema.orders)
+          .where(and(eq(schema.orders.customerId, link.customerId), inArray(schema.orders.status, ['paid_confirmed', 'fulfilled'])))
+          .limit(1)
+      : []
+    const ok = !!link && !!paid
+    console.log(`  fixed link ${link ? 'found' : 'missing'}, paid order ${paid ? 'found' : 'missing'}  ${ok ? 'ok' : 'FAIL'}`)
+    if (!ok) failures.push('Demo Customer A or its fixed link is missing')
   }
 
   if (failures.length > 0) {

@@ -1,7 +1,13 @@
 <script setup lang="ts">
 // C0 "About this demo" (spec 6.1): what is real and what is simulated, the assumptions register
 // (Appendix A) in plain words, data practices (5.8, BR-DP) and the forecast honesty rule.
+import { DEMO_CUSTOMER_NAME, demoCustomerLink } from '../../server/domain/identity/demo-customer'
+
 useHead({ title: 'About this demo | GoodCane Drops' })
+
+// Demo mode only (BR-L4 exception): Demo Customer A's published link, rebuilt on every reseed.
+const config = useRuntimeConfig()
+const demoLink = computed(() => (config.public.demoMode ? demoCustomerLink(config.public.appUrl) : null))
 
 const simulated = [
   { what: 'Payments', how: 'Simulated. You choose success, failed or no response. No money is taken and no payment provider is used.' },
@@ -58,6 +64,19 @@ const collected = [
     <p class="text-ink">
       GoodCane Drops is a prototype built for a CODED paid gig. It is not GoodCane's shop and nothing here is a real order.
     </p>
+
+    <section v-if="demoLink" class="space-y-2 rounded-2xl border-2 border-sage bg-panel-raised p-4" aria-labelledby="try-heading">
+      <h2 id="try-heading" class="text-ink">Try as a returning customer</h2>
+      <p class="text-ink">
+        {{ DEMO_CUSTOMER_NAME }} is a made-up customer who has ordered before. Their private link opens "Same again?" in one tap.
+      </p>
+      <UButton :to="demoLink" external class="min-h-11" label="Open as Demo Customer A" />
+      <p class="break-all font-mono text-sm text-ink-muted">{{ demoLink }}</p>
+      <p class="text-sm text-ink-muted">
+        Shared by everyone trying the demo. If someone uses "Delete my data now" or the owner's "Send new link" on this customer,
+        the link stops working until the demo data is reset.
+      </p>
+    </section>
 
     <section class="space-y-2 gc-card p-4" aria-labelledby="real-heading">
       <h2 id="real-heading" class="text-ink">What is real and what is simulated</h2>

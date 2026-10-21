@@ -4,6 +4,7 @@ import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import postgres from 'postgres'
 import { afterAll, describe, expect, it } from 'vitest'
 import { fitsInDrop } from '../../server/domain/capacity'
+import { DEMO_CUSTOMER_NAME, DEMO_CUSTOMER_PHONE, DEMO_CUSTOMER_TOKEN } from '../../server/domain/identity/demo-customer'
 import { nextDropResponse } from '../../server/schemas/drops'
 import { rootDir, testDatabaseUrl } from '../support/test-db'
 
@@ -445,6 +446,24 @@ describe('C0 About, C8 lost link and C9 Manage', () => {
     ).json()) as { privateLink: string }
     return { cookie, headers, orderId, item, linkPath: new URL(paid.privateLink).pathname }
   }
+
+  it('Demo Customer A: the published link lands on C7 with the usual order, and no full phone anywhere', async () => {
+    const opened = await fetch(`/c/${DEMO_CUSTOMER_TOKEN}`, { redirect: 'manual' })
+    expect(opened.status).toBe(302)
+    expect(opened.headers.get('location')).toBe('/same-again')
+    const cookie = opened.headers.getSetCookie().find((c) => c.startsWith('gc_session='))!.split(';')[0]!
+    const page = await fetch('/same-again', { headers: { cookie }, redirect: 'manual' })
+    expect(page.status).toBe(200)
+    const html = await page.text()
+    expect(html).toContain(`Same again, ${DEMO_CUSTOMER_NAME}?`)
+    expect(html).toContain('Raw cane 330ml')
+    const me = await (await fetch('/api/me', { headers: { cookie } })).text()
+    for (const body of [html, me]) expect(body).not.toContain(DEMO_CUSTOMER_PHONE)
+    // C0 publishes the link, built from NUXT_PUBLIC_APP_URL.
+    const about = await $fetch<string>('/about')
+    expect(about).toContain('Try as a returning customer')
+    expect(about).toContain(`${appUrl}/c/${DEMO_CUSTOMER_TOKEN}`)
+  })
 
   it('C0 renders for everyone, with the data protection sources', async () => {
     const html = await $fetch<string>('/about')

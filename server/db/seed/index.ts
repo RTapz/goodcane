@@ -40,7 +40,10 @@ if (!target.ok) {
 console.log(`Target database host: ${target.host}${target.remote ? ' (remote, allowed by ALLOW_REMOTE_DB=true)' : ''}`)
 const { db, client } = createDb(databaseUrl)
 try {
-  await db.transaction((tx) => runSeed(tx, now))
+  // Same rule as the app (nuxt.config.ts): demo mode unless DEMO_MODE is exactly "false".
+  const demoMode = process.env.DEMO_MODE !== 'false'
+  console.log(demoMode ? 'Demo mode: adding Demo Customer A and its fixed link.' : 'Demo mode off: no Demo Customer A.')
+  await db.transaction((tx) => runSeed(tx, now, { demoMode }))
   console.log('Seed committed.')
 } catch (error) {
   console.error(`\n${(error as Error).message}`)
