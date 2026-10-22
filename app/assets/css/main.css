@@ -95,15 +95,14 @@
 }
 
 /* Visual style (spec 6.4): dark forest green, panels with a hairline border and a soft shadow.
-   Plain CSS gradients and shadows; the only images are the flavour bottles and the page background.
-   The page background is a sugarcane photo (public/backgrounds/SOURCE.md) under a dark green wash,
-   dark enough that text on the canvas keeps its contrast. */
+   Plain CSS gradients and shadows; the only images are the flavour bottles.
+   The page background is CSS only: a lighter green glow at the top and a faint warm cream wash at
+   the foot, over the canvas. Text keeps WCAG AA on both (tests/unit/app/page-background.test.ts). */
 @utility gc-page {
   background-color: var(--color-canvas);
-  background-image: linear-gradient(rgb(18 29 22 / 0.82), rgb(18 29 22 / 0.9)), url('/backgrounds/sugarcane.jpg');
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
+  background-image:
+    radial-gradient(120% 60% at 50% 0%, #1f3527 0%, transparent 60%),
+    linear-gradient(to bottom, transparent 55%, rgb(244 236 216 / 0.07) 100%);
 }
 
 @utility gc-card {

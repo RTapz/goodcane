@@ -465,6 +465,11 @@ describe('C0 About, C8 lost link and C9 Manage', () => {
     expect(about).toContain(`${appUrl}/c/${DEMO_CUSTOMER_TOKEN}`)
   })
 
+  it('the background photo is gone: the file is 404 and no page asks for it (spec 6.4)', async () => {
+    expect((await fetch('/backgrounds/sugarcane.jpg')).status).toBe(404)
+    for (const path of ['/', '/about']) expect(await $fetch<string>(path), path).not.toContain('backgrounds/')
+  })
+
   it('C0 renders for everyone, with the data protection sources', async () => {
     const html = await $fetch<string>('/about')
     expect(html).toContain('About this demo')
