@@ -258,6 +258,11 @@ export const turnedAway = pgTable(
     orderId: uuid('order_id')
       .unique()
       .references(() => orders.id, { onDelete: 'set null' }),
+    // A full drop's row (reason drop_full) has no order: the session's customer, if any, so the
+    // forecast can still leave out someone who later paid on the same drop (BR-F2).
+    customerId: uuid('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+    // One row per browser per drop for drop_full: the client reuses its key on taps and reloads.
+    idempotencyKey: text('idempotency_key').unique(),
     units: integer('units').notNull(),
     reason: text('reason').notNull(),
     createdAt: createdAt(),

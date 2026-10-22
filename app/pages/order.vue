@@ -63,6 +63,40 @@ const flavours = computed(() => {
     : list
 })
 
+// A completely full drop (BR-F2): how many bottles they wanted is recorded whatever they choose.
+// "Join" then moves to the next drop; nothing moves without that tap (BR-F1).
+const { tellGoodCane } = useTurnedAway()
+const MAX_WANTED = 24
+const wanted = ref(1)
+const telling = ref(false)
+const told = ref(false)
+const tellError = ref<string | null>(null)
+
+async function tell(): Promise<boolean> {
+  if (!activeDrop.value) return false
+  telling.value = true
+  tellError.value = null
+  try {
+    await tellGoodCane(activeDrop.value.id, wanted.value)
+    return true
+  } catch {
+    tellError.value = "We couldn't pass that on just now."
+    return false
+  } finally {
+    telling.value = false
+  }
+}
+
+async function joinNextDrop(nextDropId: string) {
+  await tell()
+  // Never a dead end: they chose the next drop, so go even if the note did not get through.
+  switchDrop(nextDropId)
+}
+
+async function justTell() {
+  told.value = await tell()
+}
+
 const canAddOne = (item: MenuItem) => fitsInDrop(units.value + item.capacityWeight, spaces.value)
 // The cart can be bigger than the spaces left if spaces were taken since it was built.
 const overBy = computed(() => Math.max(0, units.value - spaces.value))
@@ -104,19 +138,43 @@ const atLimit = computed(() => overBy.value === 0 && units.value > 0 && availabl
         </p>
 
         <!-- Never dead-end: a full drop offers the next one, and only moves if the customer taps it. -->
-        <div v-if="available.length === 0" class="gc-card p-4">
+        <div v-if="available.length === 0" class="space-y-3 gc-card p-4">
           <h2 class="text-xl text-ink">This drop is full</h2>
+          <p v-if="told" role="status" class="rounded-xl bg-mint-panel p-3 font-semibold text-sage">
+            Thanks. GoodCane now knows you wanted {{ plural(wanted, 'bottle', 'bottles') }}.
+          </p>
+          <template v-else>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="font-semibold text-ink">How many bottles did you want?</p>
+              <QuantityStepper label="bottles wanted" :quantity="wanted" :can-add="wanted < MAX_WANTED" @change="(q) => (wanted = Math.max(1, q))" />
+            </div>
+            <p class="text-sm text-ink-muted">This helps GoodCane make enough next time. It is not an order.</p>
+          </template>
           <template v-if="data.nextDrop && activeDrop.id !== data.nextDrop.id">
-            <p class="mt-1 text-ink-muted">
+            <p class="text-ink-muted">
               The next drop is {{ formatDropDate(data.nextDrop.dropAt) }}, with {{ plural(data.nextDrop.spacesLeft, 'space', 'spaces') }} left.
             </p>
             <UButton
-              class="mt-3 min-h-11"
-              :label="`Order for ${formatDropDate(data.nextDrop.dropAt)}`"
-              @click="switchDrop(data.nextDrop.id)"
+              block
+              class="min-h-11"
+              :loading="telling"
+              :disabled="telling"
+              :label="`Join ${formatDropDate(data.nextDrop.dropAt)}`"
+              @click="joinNextDrop(data.nextDrop.id)"
             />
           </template>
-          <p v-else class="mt-1 text-ink-muted">No more drops are scheduled yet. Check back soon.</p>
+          <p v-else class="text-ink-muted">No more drops are scheduled yet. Check back soon.</p>
+          <UButton
+            v-if="!told"
+            block
+            class="min-h-11"
+            color="neutral"
+            variant="outline"
+            :disabled="telling"
+            label="No thanks, just let GoodCane know"
+            @click="justTell"
+          />
+          <p v-if="tellError" role="alert" class="text-sm font-semibold text-danger">{{ tellError }}</p>
         </div>
 
         <ul v-else class="grid grid-cols-2 gap-3">

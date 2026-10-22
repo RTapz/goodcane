@@ -465,6 +465,28 @@ describe('C0 About, C8 lost link and C9 Manage', () => {
     expect(about).toContain(`${appUrl}/c/${DEMO_CUSTOMER_TOKEN}`)
   })
 
+  it('a completely full drop: POST /api/orders/turned-away records once per key, refuses a drop with room', async () => {
+    // A full drop of our own (capacity 0), so the shared live drop is left alone.
+    const [full] = await sql<{ id: string }[]>`insert into "drops" ("drop_at", "cut_off_at", "capacity", "status")
+      values (now() + interval '40 days', now() + interval '37 days', 0, 'open') returning "id"`
+    const send = (body: unknown) =>
+      fetch('/api/orders/turned-away', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    const key = crypto.randomUUID()
+    const first = await send({ dropId: full!.id, units: 2, idempotencyKey: key })
+    expect(first.status).toBe(201)
+    expect(first.headers.getSetCookie()).toEqual([])
+    const again = await send({ dropId: full!.id, units: 2, idempotencyKey: key })
+    expect(again.status).toBe(200)
+    const rows = await sql`select "units", "reason", "order_id" from "turned_away" where "drop_id" = ${full!.id}`
+    expect(rows).toEqual([{ units: 2, reason: 'drop_full', order_id: null }])
+
+    const live = nextDropResponse.parse(await $fetch('/api/drops/next')).drop!
+    expect((await send({ dropId: live.id, units: 1, idempotencyKey: crypto.randomUUID() })).status).toBe(409)
+    expect((await send({ dropId: full!.id, units: 0, idempotencyKey: crypto.randomUUID() })).status).toBe(400)
+    expect((await send({ dropId: full!.id, units: 25, idempotencyKey: crypto.randomUUID() })).status).toBe(400)
+    await sql`delete from "drops" where "id" = ${full!.id}`
+  })
+
   it('the background photo is gone: the file is 404 and no page asks for it (spec 6.4)', async () => {
     expect((await fetch('/backgrounds/sugarcane.jpg')).status).toBe(404)
     for (const path of ['/', '/about']) expect(await $fetch<string>(path), path).not.toContain('backgrounds/')

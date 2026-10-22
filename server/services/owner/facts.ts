@@ -72,8 +72,14 @@ export async function loadDropFacts(db: DbOrTx, now: Date, expiryDays: number): 
     .where(eq(orderHistory.toStatus, 'cancelled'))
   const cancelled = new Map(cancellations.map((c) => [c.orderId, c]))
 
+  // The customer behind a row: from its order, or for a drop_full row (no order) from the row itself.
   const turnedAwayRows = await db
-    .select({ dropId: turnedAway.dropId, units: turnedAway.units, customerId: orders.customerId, createdAt: turnedAway.createdAt })
+    .select({
+      dropId: turnedAway.dropId,
+      units: turnedAway.units,
+      customerId: sql<string | null>`coalesce(${orders.customerId}, ${turnedAway.customerId})`,
+      createdAt: turnedAway.createdAt
+    })
     .from(turnedAway)
     .leftJoin(orders, eq(orders.id, turnedAway.orderId))
 
