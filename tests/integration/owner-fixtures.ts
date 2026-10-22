@@ -80,6 +80,7 @@ export async function closedDropWithPayments(
   return dropId
 }
 
-export async function turnAway(db: Db, dropId: string, units: number, orderId: string | null) {
-  await db.insert(turnedAway).values({ dropId, orderId, units, reason: 'not_enough_space' })
+/** A turned-away row. Pass `createdAt` when its order against payment times matters (BR-F2 dedupe). */
+export async function turnAway(db: Db, dropId: string, units: number, orderId: string | null, createdAt?: Date) {
+  await db.insert(turnedAway).values({ dropId, orderId, units, reason: 'not_enough_space', ...(createdAt ? { createdAt } : {}) })
 }

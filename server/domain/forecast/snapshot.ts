@@ -84,9 +84,9 @@ export function snapshotAtCheckpoint(input: SnapshotInput): Snapshot {
     // Demand so far (BR-FC4), so the forecast and the actual it is scored against are both
     // demand units: paid by the checkpoint plus turned away by then, without counting anyone twice.
     const paidByCheckpoint = input.paid.filter((p) => paidAtCheckpoint(p, checkpointAt))
-    const paidCustomers = new Set(paidByCheckpoint.flatMap((p) => (p.customerId ? [p.customerId] : [])))
     const turnedAwayByCheckpoint = input.turnedAway.filter((t) => t.createdAt.getTime() <= checkpointAt.getTime())
-    const demandSoFar = sumUnits(paidByCheckpoint) + turnedAwayUnits(turnedAwayByCheckpoint, paidCustomers)
+    // BR-F2: only a payment made after the row (and by the checkpoint) hides it.
+    const demandSoFar = sumUnits(paidByCheckpoint) + turnedAwayUnits(turnedAwayByCheckpoint, paidByCheckpoint)
     const projection = share.ok ? paceProjection(demandSoFar, share.value) : null
     pace = projection?.ok ? Math.round(projection.value) : null
   }

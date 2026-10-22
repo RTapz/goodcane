@@ -192,13 +192,24 @@ describe('accuracy (BR-FC11), spec fixture as (forecast, actual)', () => {
 })
 
 describe('turnedAwayUnits (BR-F2)', () => {
+  const t0 = new Date('2026-10-20T12:00:00Z')
+  const later = new Date(t0.getTime() + 60_000)
+  const earlier = new Date(t0.getTime() - 60_000)
+
   it('ignores rows whose customer later got a paid order on the drop, keeps rows with no customer', () => {
     const rows = [
-      { units: 3, customerId: 'a' },
-      { units: 2, customerId: 'b' },
-      { units: 4, customerId: null }
+      { units: 3, customerId: 'a', createdAt: t0 },
+      { units: 2, customerId: 'b', createdAt: t0 },
+      { units: 4, customerId: null, createdAt: t0 }
     ]
-    expect(turnedAwayUnits(rows, new Set(['a']))).toBe(6)
-    expect(turnedAwayUnits(rows, new Set())).toBe(9)
+    expect(turnedAwayUnits(rows, [{ customerId: 'a', paidAt: later }])).toBe(6)
+    expect(turnedAwayUnits(rows, [])).toBe(9)
+  })
+
+  it('keeps a row whose customer had paid before it: they wanted more on top (extra demand)', () => {
+    const rows = [{ units: 3, customerId: 'a', createdAt: t0 }]
+    expect(turnedAwayUnits(rows, [{ customerId: 'a', paidAt: earlier }])).toBe(3)
+    expect(turnedAwayUnits(rows, [{ customerId: 'a', paidAt: t0 }])).toBe(3)
+    expect(turnedAwayUnits(rows, [{ customerId: 'a', paidAt: earlier }, { customerId: 'a', paidAt: later }])).toBe(0)
   })
 })

@@ -104,9 +104,10 @@ describe('O1 demand', () => {
     const keenFirst = await insertOrder(db, { dropId, itemId: item, quantity: 3, status: 'cancelled', createdAt: at(-2), customerId: keen })
     await insertOrder(db, { dropId, itemId: item, quantity: 1, status: 'paid_confirmed', createdAt: at(-1), paidAt: at(-1), customerId: keen })
     const otherOrder = await insertOrder(db, { dropId, itemId: item, quantity: 2, status: 'requested', createdAt: at(-1), customerId: other })
-    await turnAway(db, dropId, 3, keenFirst)
-    await turnAway(db, dropId, 2, otherOrder)
-    await turnAway(db, dropId, 4, null)
+    // Keen was turned away (at -2) before paying (at -1), so the later payment hides that row.
+    await turnAway(db, dropId, 3, keenFirst, at(-2))
+    await turnAway(db, dropId, 2, otherOrder, at(-1))
+    await turnAway(db, dropId, 4, null, at(-1))
 
     expect((await demand(dropId)).units.turnedAway).toBe(6)
   })

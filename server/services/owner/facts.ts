@@ -94,11 +94,11 @@ export async function loadDropFacts(db: DbOrTx, now: Date, expiryDays: number): 
       }))
 
     const paidNow = facts.filter((o) => FINAL_PAID.includes(o.status))
-    const paidCustomers = new Set(paidNow.flatMap((o) => (o.customerId ? [o.customerId] : [])))
     const paidUnits = paidNow.reduce((sum, o) => sum + o.units, 0)
+    // BR-F2: a row is hidden only by an order on this drop, paid now, that was paid after the row.
     const turnedAwayTotal = turnedAwayUnits(
       turnedAwayRows.filter((t) => t.dropId === drop.id),
-      paidCustomers
+      paidNow.flatMap((o) => (o.paidAt ? [{ customerId: o.customerId, paidAt: o.paidAt }] : []))
     )
 
     return {

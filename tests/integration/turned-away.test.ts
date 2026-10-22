@@ -90,7 +90,16 @@ describe('the forecast still counts each person once (BR-F2 dedupe)', () => {
     expect(await demand()).toBe(7)
     // A space frees up and Ama pays on the same drop: her turned-away units are already in paid.
     await db.update(orders).set({ status: 'cancelled' }).where(eq(orders.dropId, fullDrop))
-    await insertOrder(db, { dropId: fullDrop, itemId, quantity: 1, status: 'paid_confirmed', createdAt: now, paidAt: now, customerId: ama!.id })
+    const afterRow = new Date(now.getTime() + 60_000)
+    await insertOrder(db, { dropId: fullDrop, itemId, quantity: 1, status: 'paid_confirmed', createdAt: afterRow, paidAt: afterRow, customerId: ama!.id })
     expect(await demand()).toBe(3)
+  })
+
+  it('counts a session customer who had already paid on the drop and then asked for more', async () => {
+    const [kofi] = await db.insert(customers).values({ firstName: 'Kofi', phone: '+233200000202' }).returning({ id: customers.id })
+    // Kofi's own paid order is part of what filled the drop.
+    await db.update(orders).set({ customerId: kofi!.id }).where(eq(orders.dropId, fullDrop))
+    await record({ units: 2, idempotencyKey: 'kofi-key', customerId: kofi!.id })
+    expect((await dropDemand(db, fullDrop, { now, demoMode: false }))!.units.turnedAway).toBe(2)
   })
 })

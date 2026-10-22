@@ -92,4 +92,12 @@ describe('snapshotAtCheckpoint', () => {
     const snap = snapshotAtCheckpoint({ cutOffAt, checkpointDays: 3, turnedAway, paid: paidByAma, history })
     expect(snap.pace).toBe(50)
   })
+
+  it('keeps a turned-away row recorded after that customer had already paid (they wanted more)', () => {
+    const paidByAma: PaidOrder[] = [{ ...paid[0]!, customerId: 'ama' }, paid[1]!]
+    // Ama paid at checkpoint minus 1 day, then was turned away asking for more half a day later.
+    const turnedAway = [{ units: 5, customerId: 'ama', createdAt: new Date(checkpointAt.getTime() - 0.5 * DAY) }]
+    const snap = snapshotAtCheckpoint({ cutOffAt, checkpointDays: 3, turnedAway, paid: paidByAma, history })
+    expect(snap.pace).toBe(60) // (25 paid + 5 turned away) / 0.5
+  })
 })
