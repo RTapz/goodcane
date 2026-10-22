@@ -28,7 +28,7 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 | `pnpm db:migrate` | Applies migrations to `MIGRATION_DATABASE_URL`, else `DATABASE_URL`. Refuses a remote database unless `ALLOW_REMOTE_DB=true` |
 | `pnpm seed` | Resets all sample data (see below). Same database choice and remote guard as `db:migrate` |
 | `pnpm smoke --url <base>` | Proves a deployed app works end to end over HTTP (see Deployment). Writes sample data and cancels its own orders |
-| `pnpm retention` | Retention purge (not built yet) |
+| `pnpm retention` | Deletes the personal data of customers inactive for 6 months (BR-DP1), keeping their orders anonymised. `--dry-run` only counts. Prints counts only. Same database choice and remote guard as `pnpm seed` |
 
 ## Sample data (`pnpm seed`)
 

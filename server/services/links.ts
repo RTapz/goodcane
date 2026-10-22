@@ -70,7 +70,7 @@ export async function redeemLink(db: Db, raw: string, now: Date, demoMode: boole
     if (!link) return null
 
     const sessionToken = await createSession(tx, link.customerId, now, demoMode)
-    await tx.update(customers).set({ lastActiveAt: now }).where(eq(customers.id, link.customerId))
+    // Opening a link is not activity for retention (BR-DP1): last_active_at is left alone.
     const [latest] = await tx
       .select({ id: orders.id })
       .from(orders)
