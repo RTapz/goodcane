@@ -487,9 +487,11 @@ describe('C0 About, C8 lost link and C9 Manage', () => {
     await sql`delete from "drops" where "id" = ${full!.id}`
   })
 
-  it('the background photo is gone: the file is 404 and no page asks for it (spec 6.4)', async () => {
+  it('the old sugarcane photo is 404, and the cane background is served as a small WebP (spec 6.4)', async () => {
     expect((await fetch('/backgrounds/sugarcane.jpg')).status).toBe(404)
-    for (const path of ['/', '/about']) expect(await $fetch<string>(path), path).not.toContain('backgrounds/')
+    const cane = await fetch('/backgrounds/cane.webp')
+    expect(cane.status).toBe(200)
+    expect(cane.headers.get('content-type')).toBe('image/webp')
   })
 
   it('C0 renders for everyone, with the data protection sources', async () => {
