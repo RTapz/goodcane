@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Owner screens: This drop (O1), Orders (O2), Reminders (O5), Customers (O7), Log out.
+// Owner screens: This drop (O1), Orders (O2), Close batch (O3), Reminders (O5), Customers (O7), Log out.
 const route = useRoute()
 const loggingOut = ref(false)
 
@@ -16,6 +16,7 @@ async function logOut() {
 const links = [
   { to: '/owner', label: 'This drop' },
   { to: '/owner/orders', label: 'Orders' },
+  { to: '/owner/close', label: 'Close batch' },
   { to: '/owner/reminders', label: 'Reminders' },
   { to: '/owner/customers', label: 'Customers' }
 ]

@@ -633,7 +633,9 @@ describe('owner gate over HTTP (spec 8)', () => {
     ['GET', '/api/owner/customers'],
     ['POST', '/api/owner/customers/00000000-0000-4000-8000-000000000000/link'],
     ['GET', '/api/owner/reminders'],
-    ['POST', '/api/owner/reminders/00000000-0000-4000-8000-000000000000/send']
+    ['POST', '/api/owner/reminders/00000000-0000-4000-8000-000000000000/send'],
+    ['GET', '/api/owner/close/00000000-0000-4000-8000-000000000000'],
+    ['POST', '/api/owner/close/00000000-0000-4000-8000-000000000000']
   ]
   const login = (passcode: string) =>
     fetch('/api/owner/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ passcode }) })
@@ -798,6 +800,29 @@ describe('owner gate over HTTP (spec 8)', () => {
     const expired = await fetch(path, { redirect: 'manual' })
     expect(expired.headers.get('location')).toBe('/link-invalid')
     expect(expired.headers.getSetCookie().some((c) => c.startsWith('gc_session='))).toBe(false)
+    await fetch('/api/owner/logout', { method: 'POST', headers: { cookie } })
+  })
+
+  it('O3 Close batch: closes a past drop once, warns on a mismatch, and refuses bad input', async () => {
+    const cookie = await ownerCookie()
+    expect(await (await fetch('/owner/close', { headers: { cookie } })).text()).toContain('Close batch')
+    // A past drop of our own (cut-off yesterday, no orders), so the shared drops are left alone.
+    const [past] = await sql<{ id: string }[]>`insert into "drops" ("drop_at", "cut_off_at", "capacity", "status")
+      values (now() + interval '50 days', now() - interval '1 day', 10, 'open') returning "id"`
+    const json = { 'content-type': 'application/json', cookie }
+    const info = (await (await fetch(`/api/owner/close/${past!.id}`, { headers: { cookie } })).json()) as { ordersSold: number; mode: { ok: boolean } }
+    expect(info).toMatchObject({ ordersSold: 0, mode: { ok: true, mode: 'after_cut_off' } })
+
+    expect((await fetch(`/api/owner/close/${past!.id}`, { method: 'POST', headers: json, body: JSON.stringify({ unitsMade: -1, unplannedSold: 0 }) })).status).toBe(400)
+    const first = await fetch(`/api/owner/close/${past!.id}`, { method: 'POST', headers: json, body: JSON.stringify({ unitsMade: 5, unplannedSold: 3, wasted: 1 }) })
+    expect(first.status).toBe(200)
+    expect(await first.json()).toEqual({ status: 'closed', ordersSold: 0, unitsMade: 5, unplannedSold: 3, wasted: 1, warning: { difference: 1 } })
+    const again = await fetch(`/api/owner/close/${past!.id}`, { method: 'POST', headers: json, body: JSON.stringify({ unitsMade: 9, unplannedSold: 9 }) })
+    expect(again.status).toBe(200)
+    expect(await again.json()).toEqual({ status: 'already_closed', ordersSold: 0, unitsMade: 5, unplannedSold: 3, wasted: 1, warning: null })
+    const [stored] = await sql<{ status: string; units_made: number }[]>`select "status", "units_made" from "drops" where "id" = ${past!.id}`
+    expect(stored).toEqual({ status: 'completed', units_made: 5 })
+    await sql`delete from "drops" where "id" = ${past!.id}`
     await fetch('/api/owner/logout', { method: 'POST', headers: { cookie } })
   })
 

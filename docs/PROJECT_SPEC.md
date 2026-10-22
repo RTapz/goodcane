@@ -214,6 +214,7 @@ Implemented as pure, tested functions in `server/domain/forecast`.
 - **BR-B1** The owner enters units made and unplanned sold. Wasted is optional.
 - **BR-B2** The system knows orders sold. Identity: units_made = orders_sold + unplanned_sold + wasted.
 - **BR-B3** If wasted is omitted, calculate it. If all are entered and the identity fails, show a non-blocking warning with the difference.
+- **BR-B4** (built 22 Oct 2026, O3 at `/owner/close`) "Orders sold" is the drop's paid units (paid and confirmed, or fulfilled), from the same query as spaces left. A calculated wasted that would be negative (made less than sold plus unplanned) is refused. Closing writes units made, unplanned sold and wasted, sets status `completed` (the status the seed already uses for finished batches; `closed` keeps meaning "past cut-off", BR-D4) and `closed_at`, in one transaction with the drop row locked. It is idempotent: a drop already `completed` is never overwritten, and a repeat returns the stored numbers. It is refused before the cut-off, except in `DEMO_MODE` ("Demo: close early"), and then only while at least one other open drop remains, after a confirmation that says closing removes the drop from customers until the next reseed. Planned share (BR-FC12) then shows the exact figure, because it reads unplanned sold.
 
 ## 6. Screens
 
@@ -346,7 +347,7 @@ Key endpoints (indicative):
 | `GET /api/owner/customers?q=`, `POST /api/owner/customers/:id/link` | O7: customers by first name with masked phones only; Send new link (BR-L6) returns the new link once and a prefilled chat to `DEMO_WHATSAPP_NUMBER` |
 | `POST /api/reminders/optin`, `/optout` | Consent events, session required (BR-R1, BR-R2, BR-R8). `optin`: `{ channel: whatsapp or sms, frequency, source: c6, c7 or c9 }`, refused after "Stop reminders" unless the source is `c9` (BR-R8). `optout`: `{ choice: none or stop, source }` |
 | `GET /api/owner/drop/:id/demand` | Demand view numbers |
-| `POST /api/owner/drop/:id/close` | Close batch |
+| `GET /api/owner/close/:id`, `POST /api/owner/close/:id` | O3 Close batch (BR-B1 to B4). GET: the drop, orders sold, whether it can be closed and how (`after_cut_off`, `demo_early`, or why not). POST `{ unitsMade, unplannedSold, wasted? }`: 200 with the stored numbers and any warning (`difference`); a repeat on a completed drop returns the stored numbers unchanged; 409 `not_past_cut_off`, `last_open_drop` or `negative_wasted`; 400 if invalid |
 | `POST /api/owner/login`, `/logout`, `GET /api/owner/session` | Demo owner gate: passcode from `OWNER_PASSCODE` compared in constant time; `gc_owner` cookie (HttpOnly, SameSite=Lax) holding a random token stored only as a hash; 5 failed attempts per 15 minutes per IP gives 429. Every other `/api/owner/*` route answers 401 with no detail without it. A live service would use real owner accounts |
 | `GET /api/owner/drops` | Drops for the O1 picker (default: next open drop) |
 | `GET /api/owner/metrics` | The four required pilot metrics (section 10) |
