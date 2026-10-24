@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@nuxt/ui": "^4.11.3",
+    "@vercel/analytics": "^2.0.1",
     "drizzle-orm": "0.45.4",
     "nuxt": "^4.6.1",
     "postgres": "3.4.9",
