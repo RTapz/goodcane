@@ -22,7 +22,6 @@ Where each rubric line is shown in the prototype: screens, rules (from [PROJECT_
 | Never a dead end: closed drop offers the next one, full drop asks first (BR-F1), lost link offers "Message GoodCane" (C8) | `app/pages/order.vue`, `app/pages/link-invalid.vue`, `app/components/LostLinkHelp.vue` |
 | Mobile-first layout: single column, bottom-anchored actions, 44px targets | Spec 6; checked by hand at 360px during each slice |
 | Tests | `api/app.test.ts` (private link to rendered C7, Demo Customer A, reorder in two steps, price guard), `integration/place-order.test.ts`, `integration/links.test.ts`, `integration/me.test.ts`, `unit/orders/usual.test.ts`, `unit/app/payment-flow.test.ts`, `unit/app/format-and-cart.test.ts` |
-| Not yet measured | The 3-person C7 usability test (spec 6.3, criterion 6) has a template in [USABILITY_TEST.md](USABILITY_TEST.md); no results are recorded in the repository |
 
 ## 3. Usefulness of the business demand view
 
@@ -99,4 +98,4 @@ Where each rubric line is shown in the prototype: screens, rules (from [PROJECT_
 - **Demo Customer A's link is public by design;** Delete my data or Send new link on that customer kills it until the next reseed.
 - **The page background photo** is used without a recorded source or licence (`public/backgrounds/SOURCE.md`); replace it before any real use. The bottle photo is credited under the Unsplash Licence (`public/bottles/SOURCE.md`).
 - **Closing a drop early** is a demo-only shortcut and removes that drop from customers until the next reseed.
-- **Not in the repository:** results of the C7 usability test with 3 people, the demo video, the written explanation and the full measurement plan.
+- **Not in the repository:** the demo video, the written explanation and the full measurement plan.
