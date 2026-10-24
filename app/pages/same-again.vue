@@ -252,7 +252,7 @@ async function pay(expectedTotalPesewas = total.value) {
           Delivery to {{ last.area }}
           <template v-if="feeChanged">(fee was {{ formatPesewas(last.feePesewas) }}, now {{ formatPesewas(feePesewas) }})</template>
         </p>
-        <p v-else class="mt-1 text-sm text-ink">Pickup, pickup point, Accra</p>
+        <p v-else class="mt-1 text-sm text-ink">Pickup, {{ PICKUP_LOCATION }}</p>
       </section>
 
       <div v-if="areaGone" role="status" class="rounded-2xl border border-amber-400 bg-panel-raised p-3">

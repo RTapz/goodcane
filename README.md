@@ -142,7 +142,7 @@ What stays correct, and why:
 
 ### Known limits of this demo
 
-- Sample data only: drinks, prices, dates, the pickup point, delivery areas and customers are made up, and payment is a simulation.
+- Sample data only: drinks, prices, dates, delivery areas and customers are made up, and payment is a simulation.
 - The owner gate is one shared demo passcode, not owner accounts.
 - The private link travels in the URL path and can appear in hosting logs (see Privacy below).
 - Rate limiting depends on the Vercel WAF rule above; without it, anyone can create many sample orders (each session is capped at 3 unpaid ones).

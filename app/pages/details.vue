@@ -240,7 +240,7 @@ async function submit() {
           </fieldset>
         </template>
         <p v-else class="rounded-2xl bg-panel-raised p-3 text-sm text-ink-muted">
-          Pickup at the pickup point, Accra, on drop day.
+          Pickup at {{ PICKUP_LOCATION }}, on drop day.
         </p>
 
         <p v-if="submitError" role="alert" class="rounded-2xl border border-danger/60 bg-panel-raised p-3 font-semibold text-ink">

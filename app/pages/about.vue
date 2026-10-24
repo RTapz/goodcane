@@ -12,7 +12,7 @@ const demoLink = computed(() => (config.public.demoMode ? demoCustomerLink(confi
 const simulated = [
   { what: 'Payments', how: 'Simulated. You choose success, failed or no response. No money is taken and no payment provider is used.' },
   { what: 'Messages', how: 'Never sent by the app. Reminders wait in a queue; the owner opens a prefilled WhatsApp chat by hand.' },
-  { what: 'Data', how: 'Made up: drinks, prices, locations, customers and past orders. Anything you type here is demo data too.' },
+  { what: 'Data', how: 'Made up: drinks, prices, delivery areas, customers and past orders. Anything you type here is demo data too.' },
   { what: 'Real', how: 'The ordering, reordering, private link, reminder consent and demand view all work, end to end, on a real database.' }
 ]
 
@@ -23,7 +23,7 @@ const toConfirm = [
   'Whether bottles are frozen, and how long they keep once thawed.',
   'Which problem matters most: waste, selling out, workload or cash tied up.',
   'How many bottles can be made in a day.',
-  'Shop hours, location, delivery areas and fees, and pickup options.',
+  'Shop hours, delivery areas and fees, and other pickup options.',
   'How payment is taken today.',
   'Current prices (seen publicly: 330ml 35, 500ml 45, 2L 180, 4L 260 cedis).',
   'Which flavours are always on and which are seasonal.',

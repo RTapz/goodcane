@@ -63,7 +63,7 @@ async function makeNewLink() {
       <section class="gc-card p-4" aria-labelledby="handover-heading">
         <h2 id="handover-heading" class="text-ink">{{ order.fulfilment === 'delivery' ? 'Delivery' : 'Pickup' }}</h2>
         <p v-if="order.fulfilment === 'delivery'" class="mt-1 text-ink">{{ order.address }}, {{ order.area }}</p>
-        <p v-else class="mt-1 text-ink">Pickup point, Accra, on {{ formatDropDate(order.drop.dropAt) }}</p>
+        <p v-else class="mt-1 text-ink">Pickup at {{ PICKUP_LOCATION }}, on {{ formatDropDate(order.drop.dropAt) }}</p>
         <p class="mt-1 text-ink">{{ order.firstName }}, {{ order.phoneMasked }}</p>
       </section>
 

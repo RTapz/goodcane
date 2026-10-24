@@ -224,7 +224,7 @@ The Demo data button (constraint 8) appears on all pages. Mobile first: single c
 
 | # | Screen | Contents | Priority |
 |---|---|---|---|
-| C1 | **Landing: "This drop"** | Next drop date, cut-off countdown, taste picker (Sweet, Spicy, Sour), "GoodCane says" claims note, hours and pickup placeholder. Recognised returning customers see "Welcome back, {first name}. Same again?" | P0 |
+| C1 | **Landing: "This drop"** | Next drop date, cut-off countdown, taste picker (Sweet, Spicy, Sour), "GoodCane says" claims note, hours and the pickup location (Adenta (Aviation Road), Greater Accra). Recognised returning customers see "Welcome back, {first name}. Same again?" | P0 |
 | C2 | **Build order** | Flavour, size, quantity stepper, spaces left, sticky total bar. Hide sold-out items; never dead-end | P0 |
 | C3 | **Your details** | Name (labelled "Name", stored as first name), phone, Pickup or Delivery toggle (delivery reveals address, sample area, sample fee) | P0 |
 | C4 | **Review and pay** | Summary, hold countdown, "No money is taken" notice | P0 |
@@ -432,7 +432,7 @@ Priority order: finish C1 to C7 and O1 and O2 first (P0). Cut order when behind:
 - A4 Whether bottled drinks are frozen, and the usable shelf life once thawed.
 - A5 Which pain matters most: waste, sell-outs, production workload or cash tied up.
 - A6 Production capacity per day.
-- A7 Main shop hours, location, delivery areas and fees, pickup options.
+- A7 Main shop hours, delivery areas and fees, other pickup options. The pickup location is Adenta (Aviation Road), Greater Accra (decision 24 Oct 2026).
 - A8 How payment is taken today.
 - A9 Current prices (observed: 330ml 35, 500ml 45, 2L 180, 4L 260 cedis).
 - A10 Which flavours are core versus seasonal.

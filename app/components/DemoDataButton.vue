@@ -16,7 +16,7 @@ const open = ref(false)
   <LazyUModal v-if="open" :open="true" title="Everything here is demo data" @update:open="(v: boolean) => { if (!v) open = false }">
     <template #body>
       <ul class="list-disc space-y-1 pl-5 text-ink">
-        <li>The drinks, prices, drop dates, pickup point, delivery areas and customers are made up.</li>
+        <li>The drinks, prices, drop dates, delivery areas and customers are made up.</li>
         <li>No real orders are placed and no money is taken. Payment is a simulation.</li>
         <li>No messages are sent by this app.</li>
         <li>This is a prototype, not GoodCane's shop.</li>

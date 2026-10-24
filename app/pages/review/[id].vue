@@ -90,7 +90,7 @@ async function rebuild() {
       <section class="gc-card p-4" aria-labelledby="details-heading">
         <h2 id="details-heading" class="text-ink">{{ order.fulfilment === 'delivery' ? 'Delivery' : 'Pickup' }}</h2>
         <p v-if="order.fulfilment === 'delivery'" class="mt-1 text-ink">{{ order.address }}, {{ order.area }}</p>
-        <p v-else class="mt-1 text-ink">Pickup point, Accra, on drop day</p>
+        <p v-else class="mt-1 text-ink">Pickup at {{ PICKUP_LOCATION }}, on drop day</p>
         <p class="mt-1 text-ink">{{ order.firstName }}, {{ order.phoneMasked }}</p>
         <NuxtLink to="/details" class="mt-1 inline-flex min-h-11 items-center font-semibold text-sage underline">Change details</NuxtLink>
       </section>
