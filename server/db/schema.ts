@@ -30,6 +30,7 @@ export const orderStatus = pgEnum('order_status', [
 export const fulfilment = pgEnum('fulfilment', ['pickup', 'delivery'])
 export const tokenKind = pgEnum('token_kind', ['link', 'session', 'reminder'])
 export const consentAction = pgEnum('consent_action', ['opt_in', 'opt_out'])
+// 'sms' is no longer offered, but stays so earlier consent rows remain valid (BR-R1, BR-R2).
 export const reminderChannel = pgEnum('reminder_channel', ['whatsapp', 'sms', 'none'])
 export const reminderFrequency = pgEnum('reminder_frequency', [
   'every_drop',

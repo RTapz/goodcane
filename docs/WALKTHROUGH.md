@@ -451,7 +451,7 @@ The owner's reminder queue (O5) must never offer a reminder to someone who shoul
 For one drop, it returns the customers who may be reminded. A customer is **left out** if any of these is true:
 
 - **Their latest consent row is not an opt-in.** That covers "Stop reminders", None and never choosing. Consent is append-only (section 7), so "latest" is the newest row by time.
-- **Their channel is not WhatsApp or SMS**, for example None.
+- **Their channel is not WhatsApp**, for example None.
 - **They have been inactive longer than the retention period** (sample: 6 months, the `retention_months` setting).
 - **They deleted their data** (`deleted_at` is set).
 - **They already ordered for this drop:** a paid or fulfilled order, or a request that has not lapsed. A lapsed or cancelled request does not count: they wanted to order and did not finish, which is exactly who a reminder is for.

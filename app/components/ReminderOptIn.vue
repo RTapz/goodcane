@@ -7,7 +7,7 @@ import type { Me } from '~~/server/services/me'
 const props = defineProps<{ source: 'c6' | 'c7' | 'c9'; compact?: boolean }>()
 const { me, refresh } = useMe()
 
-type Channel = 'whatsapp' | 'sms' | 'none'
+type Channel = 'whatsapp' | 'none'
 type Frequency = 'every_drop' | 'every_second_drop' | 'monthly'
 
 const channel = ref<Channel | null>(null)
@@ -23,7 +23,6 @@ const resubscribing = computed(() => state.value === 'stopped' && props.source =
 const canChoose = computed(() => state.value === 'none_yet' || state.value === 'declined' || resubscribing.value)
 const channelOptions = computed(() => [
   { value: 'whatsapp' as const, label: 'WhatsApp' },
-  { value: 'sms' as const, label: 'SMS' },
   // None is a first choice only; after choosing it, the control is for turning reminders on.
   ...(state.value === 'none_yet' ? [{ value: 'none' as const, label: 'None' }] : [])
 ])
@@ -32,10 +31,9 @@ const frequencyOptions: { value: Frequency; label: string }[] = [
   { value: 'every_second_drop', label: 'Every second drop' },
   { value: 'monthly', label: 'Once a month' }
 ]
-const needsFrequency = computed(() => channel.value === 'whatsapp' || channel.value === 'sms')
+const needsFrequency = computed(() => channel.value === 'whatsapp')
 const complete = computed(() => channel.value === 'none' || (needsFrequency.value && !!frequency.value))
 
-const channelLabel = (c: string | null | undefined) => (c === 'sms' ? 'SMS' : 'WhatsApp')
 const frequencyLabel = (f: string | null | undefined) =>
   frequencyOptions.find((o) => o.value === f)?.label.toLowerCase() ?? ''
 
@@ -77,7 +75,7 @@ function stop() {
 
     <template v-if="state === 'opted_in'">
       <p class="text-ink">
-        Reminders on: {{ channelLabel(me.reminders.channel) }}, {{ frequencyLabel(me.reminders.frequency) }}.
+        Reminders on: WhatsApp, {{ frequencyLabel(me.reminders.frequency) }}.
         GoodCane sends them by hand.
       </p>
       <UButton
@@ -114,7 +112,7 @@ function stop() {
           <legend class="font-semibold text-ink">
             {{ resubscribing ? 'Resubscribe to reminders by' : state === 'declined' ? 'Turn reminders on by' : 'Remind me before the next drop by' }}
           </legend>
-          <div class="mt-1 grid gap-2" :class="channelOptions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'">
+          <div class="mt-1 grid gap-2" :class="channelOptions.length === 2 ? 'grid-cols-2' : 'grid-cols-1'">
             <label
               v-for="option in channelOptions"
               :key="option.value"

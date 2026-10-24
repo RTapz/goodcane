@@ -63,6 +63,11 @@ describe('BR-R7: who may be reminded for a drop', () => {
     expect(await eligibleIds()).toEqual([])
   })
 
+  it('leaves out a customer who opted in by SMS before it was retired', async () => {
+    await optedIn('Sms', 'every_drop', 'sms')
+    expect(await eligibleIds()).toEqual([])
+  })
+
   it('leaves out a customer inactive for longer than the retention period, and a deleted one', async () => {
     const inactive = await optedIn('Inactive')
     await db.update(customers).set({ lastActiveAt: at(-7 * 31) }).where(eq(customers.id, inactive))

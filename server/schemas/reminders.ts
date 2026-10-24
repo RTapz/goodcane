@@ -4,7 +4,7 @@ import { z } from 'zod'
 const source = z.enum(['c6', 'c7', 'c9'])
 
 export const optInBody = z.strictObject({
-  channel: z.enum(['whatsapp', 'sms']),
+  channel: z.enum(['whatsapp']),
   frequency: z.enum(['every_drop', 'every_second_drop', 'monthly']),
   source
 })

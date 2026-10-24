@@ -6,7 +6,7 @@ import type { Db, Tx } from '../db/client'
 import { consentEvents, customers } from '../db/schema'
 import { latestConsent } from './me'
 
-type Channel = 'whatsapp' | 'sms'
+type Channel = 'whatsapp'
 type Frequency = 'every_drop' | 'every_second_drop' | 'monthly'
 type Source = ConsentSource
 

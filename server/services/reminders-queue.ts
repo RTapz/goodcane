@@ -21,14 +21,14 @@ export interface EligibleCustomer {
   customerId: string
   firstName: string
   phone: string
-  channel: 'whatsapp' | 'sms'
+  channel: 'whatsapp'
   frequency: ReminderFrequency
 }
 
 /**
  * Customers who may be reminded for this drop (BR-R7), with their frequency applied (BR-R4).
  * Left out: latest consent not an opt-in (opted out, stopped, None, no choice yet), channel not
- * WhatsApp or SMS, inactive for longer than the retention period, deleted, already ordered for this
+ * WhatsApp (including the retired SMS), inactive for longer than the retention period, deleted, already ordered for this
  * drop (a request that has not lapsed, or a paid or fulfilled order), and anyone who already has a
  * reminder row for this drop (BR-R5, one chase). `keepQueued` keeps customers whose row for this
  * drop is still only queued: the queue uses it to re-check rows it already made.
@@ -61,14 +61,13 @@ export async function eligibleForReminder(
       customerId: customers.id,
       firstName: customers.firstName,
       phone: customers.phone,
-      channel: customers.reminderChannel,
       frequency: customers.reminderFrequency
     })
     .from(customers)
     .where(
       and(
         isNull(customers.deletedAt),
-        inArray(customers.reminderChannel, ['whatsapp', 'sms']),
+        eq(customers.reminderChannel, 'whatsapp'),
         sql`${customers.reminderFrequency} is not null`,
         sql`${customers.lastActiveAt} >= ${activeSince.toISOString()}::timestamptz`,
         sql`${latestConsent} = 'opt_in'`,
@@ -99,7 +98,7 @@ export async function eligibleForReminder(
       customerId: r.customerId,
       firstName: r.firstName ?? '',
       phone: r.phone ?? '',
-      channel: r.channel as 'whatsapp' | 'sms',
+      channel: 'whatsapp' as const,
       frequency: r.frequency as ReminderFrequency
     }))
 }
@@ -109,7 +108,7 @@ export interface QueueRow {
   customerId: string
   firstName: string
   maskedPhone: string
-  channel: 'whatsapp' | 'sms'
+  channel: 'whatsapp'
   frequency: ReminderFrequency
   window: ReminderWindow
 }
@@ -171,7 +170,7 @@ export type SendResult =
       kind: 'sent'
       token: string
       firstName: string
-      channel: 'whatsapp' | 'sms'
+      channel: 'whatsapp'
       drop: { dropAt: Date; cutOffAt: Date }
     }
   | { kind: 'not_found' }

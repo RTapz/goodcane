@@ -9,11 +9,10 @@ useHead({ title: 'Reminders (owner) | GoodCane Drops' })
 
 const { data, status, refresh } = await useFetch<Queue & { demoMode: boolean }>('/api/owner/reminders', { key: 'owner-reminders' })
 
-const channelLabel = { whatsapp: 'WhatsApp', sms: 'SMS' } as const
 const frequencyLabel = { every_drop: 'every drop', every_second_drop: 'every second drop', monthly: 'once a month' } as const
 
 const sendingId = ref<string | null>(null)
-const sent = ref<{ firstName: string; channel: 'whatsapp' | 'sms'; text: string; whatsappUrl: string | null } | null>(null)
+const sent = ref<{ firstName: string; text: string; whatsappUrl: string | null } | null>(null)
 const error = ref<string | null>(null)
 const copied = ref(false)
 
@@ -22,7 +21,7 @@ async function send(row: QueueRow) {
   error.value = null
   copied.value = false
   try {
-    const result = await $fetch<{ channel: 'whatsapp' | 'sms'; text: string; whatsappUrl: string | null }>(
+    const result = await $fetch<{ text: string; whatsappUrl: string | null }>(
       `/api/owner/reminders/${row.reminderId}/send`,
       { method: 'POST' }
     )
@@ -77,7 +76,6 @@ async function copy() {
           />
           <UButton class="min-h-11" color="neutral" variant="outline" :label="copied ? 'Copied' : 'Copy text'" @click="copy" />
         </div>
-        <p v-if="sent.channel === 'sms'" class="text-sm text-ink-muted">SMS: copy the text into a message.</p>
       </section>
       <p v-if="error" role="alert" class="mt-3 font-semibold text-danger">{{ error }}</p>
 
@@ -87,7 +85,7 @@ async function copy() {
         <ul v-else class="mt-2 space-y-3">
           <li v-for="row in data.dueNow" :key="row.reminderId" class="gc-card p-3">
             <p class="font-semibold">{{ row.firstName }}</p>
-            <p class="text-sm text-ink-muted">{{ row.maskedPhone }}, {{ channelLabel[row.channel] }}, {{ frequencyLabel[row.frequency] }}</p>
+            <p class="text-sm text-ink-muted">{{ row.maskedPhone }}, WhatsApp, {{ frequencyLabel[row.frequency] }}</p>
             <UButton class="mt-2 min-h-11" label="Send" :loading="sendingId === row.reminderId" :disabled="sendingId !== null" @click="send(row)" />
           </li>
         </ul>
@@ -100,7 +98,7 @@ async function copy() {
         <ul v-else class="mt-2 space-y-3">
           <li v-for="row in data.comingUp" :key="row.reminderId" class="gc-card p-3">
             <p class="font-semibold">{{ row.firstName }}</p>
-            <p class="text-sm text-ink-muted">{{ row.maskedPhone }}, {{ channelLabel[row.channel] }}, {{ frequencyLabel[row.frequency] }}</p>
+            <p class="text-sm text-ink-muted">{{ row.maskedPhone }}, WhatsApp, {{ frequencyLabel[row.frequency] }}</p>
             <UButton
               v-if="data.demoMode"
               class="mt-2 min-h-11"

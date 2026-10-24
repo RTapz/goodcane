@@ -41,13 +41,13 @@ describe('consent is append-only (BR-R2)', () => {
   it('earlier rows are never updated or deleted: each change only adds a row', async () => {
     await optOut(db, customerId, { choice: 'none', source: 'c6' }, at(1))
     const before = await rows()
-    await optIn(db, customerId, { channel: 'sms', frequency: 'monthly', source: 'c7' }, at(2))
+    await optIn(db, customerId, { channel: 'whatsapp', frequency: 'monthly', source: 'c7' }, at(2))
     const middle = await rows()
     await optOut(db, customerId, { choice: 'stop', source: 'c7' }, at(3))
     const after = await rows()
     expect(middle.slice(0, before.length)).toEqual(before)
     expect(after.slice(0, middle.length)).toEqual(middle)
-    expect(after.map((r) => `${r.action}:${r.channel}:${r.source}`)).toEqual(['opt_out:none:c6', 'opt_in:sms:c7', 'opt_out:null:c7'])
+    expect(after.map((r) => `${r.action}:${r.channel}:${r.source}`)).toEqual(['opt_out:none:c6', 'opt_in:whatsapp:c7', 'opt_out:null:c7'])
   })
 })
 
@@ -63,7 +63,7 @@ describe('None and Stop (BR-R1, BR-R8)', () => {
     expect(await optOut(db, customerId, { choice: 'stop', source: 'c6' }, at(2))).toEqual({ kind: 'ok', state: 'stopped' })
     expect(await customer()).toMatchObject({ reminderChannel: null, reminderFrequency: null })
     const count = (await rows()).length
-    expect(await optIn(db, customerId, { channel: 'sms', frequency: 'monthly', source: 'c7' }, at(3))).toEqual({
+    expect(await optIn(db, customerId, { channel: 'whatsapp', frequency: 'monthly', source: 'c7' }, at(3))).toEqual({
       kind: 'refused',
       state: 'stopped'
     })
@@ -74,20 +74,20 @@ describe('None and Stop (BR-R1, BR-R8)', () => {
     await optIn(db, customerId, { channel: 'whatsapp', frequency: 'every_drop', source: 'c6' }, at(1))
     await optOut(db, customerId, { choice: 'stop', source: 'c6' }, at(2))
     const before = await rows()
-    expect(await optIn(db, customerId, { channel: 'sms', frequency: 'monthly', source: 'c9' }, at(3))).toEqual({
+    expect(await optIn(db, customerId, { channel: 'whatsapp', frequency: 'monthly', source: 'c9' }, at(3))).toEqual({
       kind: 'ok',
       state: 'opted_in'
     })
     const after = await rows()
     expect(after.slice(0, before.length)).toEqual(before)
-    expect(after.map((r) => `${r.action}:${r.channel}:${r.source}`)).toEqual(['opt_in:whatsapp:c6', 'opt_out:null:c6', 'opt_in:sms:c9'])
-    expect(await customer()).toMatchObject({ reminderChannel: 'sms', reminderFrequency: 'monthly' })
+    expect(after.map((r) => `${r.action}:${r.channel}:${r.source}`)).toEqual(['opt_in:whatsapp:c6', 'opt_out:null:c6', 'opt_in:whatsapp:c9'])
+    expect(await customer()).toMatchObject({ reminderChannel: 'whatsapp', reminderFrequency: 'monthly' })
   })
 
   it('refuses a second opt-in, Stop without an opt-in, and None after a choice', async () => {
     expect((await optOut(db, customerId, { choice: 'stop', source: 'c6' }, at(1))).kind).toBe('refused')
     await optIn(db, customerId, { channel: 'whatsapp', frequency: 'every_drop', source: 'c6' }, at(2))
-    expect((await optIn(db, customerId, { channel: 'sms', frequency: 'monthly', source: 'c6' }, at(3))).kind).toBe('refused')
+    expect((await optIn(db, customerId, { channel: 'whatsapp', frequency: 'monthly', source: 'c6' }, at(3))).kind).toBe('refused')
     expect((await optOut(db, customerId, { choice: 'none', source: 'c6' }, at(4))).kind).toBe('refused')
     expect((await rows()).length).toBe(1)
   })

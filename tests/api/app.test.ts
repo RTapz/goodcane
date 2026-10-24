@@ -339,7 +339,17 @@ describe('returning customer: /api/me, reminders and the C7 two-step reorder', (
     const post = (path: string, body: unknown) => fetch(path, { method: 'POST', headers: a.headers, body: JSON.stringify(body) })
     expect((await post('/api/reminders/optin', { channel: 'whatsapp', frequency: 'every_drop', source: 'c6' })).status).toBe(200)
     expect((await post('/api/reminders/optout', { choice: 'stop', source: 'c6' })).status).toBe(200)
-    expect((await post('/api/reminders/optin', { channel: 'sms', frequency: 'monthly', source: 'c7' })).status).toBe(409)
+    expect((await post('/api/reminders/optin', { channel: 'whatsapp', frequency: 'monthly', source: 'c7' })).status).toBe(409)
+  })
+
+  it('SMS is not a reminder channel (BR-R1)', async () => {
+    const a = await paidCustomer()
+    const res = await fetch('/api/reminders/optin', {
+      method: 'POST',
+      headers: a.headers,
+      body: JSON.stringify({ channel: 'sms', frequency: 'monthly', source: 'c6' })
+    })
+    expect(res.status).toBe(400)
   })
 
   it('two steps: open C7 (its data), press Pay, and a requested order exists with server-side prices', async () => {
@@ -521,7 +531,7 @@ describe('C0 About, C8 lost link and C9 Manage', () => {
     const resubscribe = await fetch('/api/reminders/optin', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ channel: 'sms', frequency: 'monthly', source: 'c9' })
+      body: JSON.stringify({ channel: 'whatsapp', frequency: 'monthly', source: 'c9' })
     })
     expect(resubscribe.status).toBe(404)
   })
@@ -545,8 +555,8 @@ describe('C0 About, C8 lost link and C9 Manage', () => {
     const post = (path: string, body: unknown) => fetch(path, { method: 'POST', headers: a.headers, body: JSON.stringify(body) })
     await post('/api/reminders/optin', { channel: 'whatsapp', frequency: 'every_drop', source: 'c6' })
     expect((await post('/api/reminders/optout', { choice: 'stop', source: 'c9' })).status).toBe(200)
-    expect((await post('/api/reminders/optin', { channel: 'sms', frequency: 'monthly', source: 'c7' })).status).toBe(409)
-    expect((await post('/api/reminders/optin', { channel: 'sms', frequency: 'monthly', source: 'c9' })).status).toBe(200)
+    expect((await post('/api/reminders/optin', { channel: 'whatsapp', frequency: 'monthly', source: 'c7' })).status).toBe(409)
+    expect((await post('/api/reminders/optin', { channel: 'whatsapp', frequency: 'monthly', source: 'c9' })).status).toBe(200)
   })
 
   it('C9 cancel: own order only, with confirm; a paid order gets refund due and frees its spaces', async () => {
@@ -774,10 +784,10 @@ describe('owner gate over HTTP (spec 8)', () => {
     const send = () => fetch(`/api/owner/reminders/${row.reminderId}/send`, { method: 'POST', headers: { cookie } })
     const sent = await send()
     expect(sent.status).toBe(200)
-    const body = (await sent.json()) as { text: string; link: string; whatsappUrl: string | null; channel: string }
+    const body = (await sent.json()) as { text: string; link: string; whatsappUrl: string | null }
     expect(body.link).toMatch(new RegExp(`^${appUrl.replace(/\./g, '\\.')}/r/[A-Za-z0-9_-]{43}$`))
     expect(body.text).toContain(body.link)
-    if (body.channel === 'whatsapp') expect(body.whatsappUrl).toMatch(/^https:\/\/wa\.me\/233200000000\?text=/)
+    expect(body.whatsappUrl).toMatch(/^https:\/\/wa\.me\/233200000000\?text=/)
     for (const { phone } of phones) expect(JSON.stringify(body)).not.toContain(phone)
     // One chase: the same row cannot be sent again.
     expect((await send()).status).toBe(409)

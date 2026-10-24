@@ -1,11 +1,9 @@
 <script setup lang="ts">
-// The private link, shown once (BR-L4), with Copy, Send to my WhatsApp and Add to home screen.
+// The private link, shown once (BR-L4), with Copy and Send to my WhatsApp.
 const props = defineProps<{ privateLink: string; whatsappUrl: string | null }>()
 
 const copied = ref(false)
-const showInstallHelp = ref(false)
 const input = useTemplateRef<HTMLInputElement>('linkInput')
-const { canPrompt, installed, install } = useInstallPrompt()
 
 async function copy() {
   try {
@@ -14,14 +12,6 @@ async function copy() {
   } catch {
     // Clipboard blocked: select the text so the customer can copy it by hand.
     input.value?.select()
-  }
-}
-
-async function addToHomeScreen() {
-  if (canPrompt.value) {
-    await install()
-  } else {
-    showInstallHelp.value = true
   }
 }
 </script>
@@ -57,20 +47,7 @@ async function addToHomeScreen() {
         class="min-h-12"
         label="Send to my WhatsApp"
       />
-      <UButton
-        v-if="!installed"
-        block
-        size="xl"
-        color="neutral"
-        variant="outline"
-        class="min-h-12"
-        label="Add to home screen"
-        @click="addToHomeScreen"
-      />
     </div>
     <p v-if="copied" role="status" class="text-sm font-semibold text-sage">Link copied.</p>
-    <p v-if="showInstallHelp" role="status" class="rounded-2xl bg-warn-panel p-3 text-sm text-ink">
-      In your browser menu, choose <strong>Add to Home Screen</strong> (on iPhone: the Share button, then Add to Home Screen).
-    </p>
   </section>
 </template>

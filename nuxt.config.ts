@@ -43,7 +43,7 @@ export default defineNuxtConfig({
         { name: 'robots', content: 'noindex, nofollow' },
         { name: 'theme-color', content: '#121d16' }
       ],
-      // Installable from C6 ("Add to home screen"). Icons are a plain text "GD" tile.
+      // Installable from the browser's own menu. Icons are a plain text "GD" tile.
       link: [
         { rel: 'manifest', href: '/manifest.webmanifest' },
         { rel: 'icon', type: 'image/svg+xml', href: '/icons/icon.svg' },

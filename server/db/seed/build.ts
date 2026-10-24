@@ -464,7 +464,6 @@ export function buildSampleData({ rand, now, pickDay = defaultPickDay, demoCusto
 
   // Consent: opt-in happens on the confirmation screen (C6) after a first payment.
 
-  const channels = ['whatsapp', 'sms'] as const
   const frequencies = ['every_drop', 'every_second_drop', 'monthly'] as const
   const optedIn: { customer: SampleCustomer; optInAt: Date }[] = []
   const withPayments = sampleCustomers.filter((c) => c.firstPaidAt !== null)
@@ -476,7 +475,7 @@ export function buildSampleData({ rand, now, pickDay = defaultPickDay, demoCusto
       const optInAt = new Date(
         Math.min(firstPaidAt + randBetween(rand, 1 * MINUTE, 30 * MINUTE), now.getTime() - MINUTE)
       )
-      const channel = pickOne(rand, channels)
+      const channel = 'whatsapp'
       const frequency = pickOne(rand, frequencies)
       data.consentEvents.push({
         id: newId(),
@@ -536,7 +535,7 @@ export function buildSampleData({ rand, now, pickDay = defaultPickDay, demoCusto
       id: newId(),
       customerId: customer.row.id,
       dropId: drop.id,
-      channel: customer.row.reminderChannel as 'whatsapp' | 'sms',
+      channel: 'whatsapp',
       status: 'sent',
       sentAt: new Date(drop.cutOffAt.getTime() - reminderDaysBefore * DAY + randBetween(rand, 0, 3 * HOUR)),
       isSample: true
@@ -549,7 +548,7 @@ export function buildSampleData({ rand, now, pickDay = defaultPickDay, demoCusto
       id: newId(),
       customerId: customer.row.id,
       dropId: live.id,
-      channel: customer.row.reminderChannel as 'whatsapp' | 'sms',
+      channel: 'whatsapp',
       status: 'queued',
       sentAt: null,
       isSample: true

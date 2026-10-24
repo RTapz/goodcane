@@ -16,11 +16,9 @@ export default defineEventHandler(async (event) => {
   const link = reminderLinkUrl(config.public.appUrl, result.token)
   const text = reminderText(result.firstName, result.drop.dropAt, result.drop.cutOffAt, link)
   return {
-    channel: result.channel,
     link,
     text,
-    // SMS: the owner copies the text; WhatsApp: a prefilled chat to the demo number.
-    whatsappUrl: result.channel === 'whatsapp' ? whatsappShareUrl(config.demoWhatsappNumber, text) : null
+    whatsappUrl: whatsappShareUrl(config.demoWhatsappNumber, text)
   }
 })
 
