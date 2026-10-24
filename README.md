@@ -1,6 +1,8 @@
 # GoodCane Drops (demo)
 
-**Live demo:** _link to be added after deployment_
+- **Live demo:** https://goodcane.vercel.app
+- **Try as a returning customer:** https://goodcane.vercel.app/c/DemoCustomerA-GoodCaneDrops-sampleLink-0001
+- **Owner view:** https://goodcane.vercel.app/owner/login (needs the demo passcode given to reviewers)
 
 A mobile-first pre-order and reorder prototype for GoodCane's bottled sugarcane drinks. Everything here is a demo: sample data, no real payments, no real messages. The full brief is in [docs/PROJECT_SPEC.md](docs/PROJECT_SPEC.md).
 
@@ -88,7 +90,7 @@ Locally, the app, migrations and the seed read the plain names from `.env`. On V
 | `DEMO_WHATSAPP_NUMBER` | `NUXT_DEMO_WHATSAPP_NUMBER` | The only number a wa.me link may use; empty hides the button | `.env`; Vercel | Empty |
 | `OWNER_PASSCODE` | `NUXT_OWNER_PASSCODE` | The demo owner gate | `.env`; Vercel; `$env` for the smoke test | A demo passcode for reviewers (see below) |
 | `TRUST_PROXY` | `NUXT_TRUST_PROXY` | Read the client address from `x-vercel-forwarded-for` for the login limit | `.env` (false); Vercel | `true` (Vercel only) |
-| `APP_URL` | `NUXT_PUBLIC_APP_URL` | Base of private links (`/c/<token>`) | `.env`; Vercel | `https://<your-project>.vercel.app` |
+| `APP_URL` | `NUXT_PUBLIC_APP_URL` | Base of private links (`/c/<token>`) | `.env`; Vercel | `https://goodcane.vercel.app` |
 | `TEST_DATABASE_URL` | (not on Vercel) | Integration and API tests; name must end in `_test` | `.env` | Not deployed |
 
 **OWNER_PASSCODE is a demo passcode shown to reviewers.** Never use a password you use anywhere else.
@@ -101,8 +103,8 @@ In order:
 
 1. **Supabase.** Create the project in eu-west-1. From **Connect**, copy the **transaction pooler** string (port 6543) and the **session pooler** string (port 5432). The app does not use the Data API or any anon key: you can turn the Data API off under the project's API settings.
 2. **Vercel variables.** In the project's Settings, Environment Variables, add these for **Production only** (previews then build without a database and simply report `database: false` on `/api/health`):
-   `NUXT_DATABASE_URL`, `NUXT_OWNER_PASSCODE`, `NUXT_TRUST_PROXY` = `true`, `NUXT_PUBLIC_DEMO_MODE` = `true`, `NUXT_PUBLIC_APP_URL` = your production URL, `NUXT_DEMO_WHATSAPP_NUMBER` = empty.
-3. **Deploy** from GitHub (push, then let Vercel build), and check `https://<your-app>/api/health` shows `{"ok":true,"database":true}`.
+   `NUXT_DATABASE_URL`, `NUXT_OWNER_PASSCODE`, `NUXT_TRUST_PROXY` = `true`, `NUXT_PUBLIC_DEMO_MODE` = `true`, `NUXT_PUBLIC_APP_URL` = `https://goodcane.vercel.app`, `NUXT_DEMO_WHATSAPP_NUMBER` = empty.
+3. **Deploy** from GitHub (push, then let Vercel build), and check https://goodcane.vercel.app/api/health shows `{"ok":true,"database":true}`.
 4. **Migrate and seed from your PC**, against the session pooler. Each line sets the variables, runs one command, then removes them (in PowerShell, `$env:` lasts for the whole window otherwise). Paste the string from the Supabase dashboard where shown; never save it in a file:
 
    ```powershell
@@ -116,7 +118,7 @@ In order:
 5. **Smoke test** the live app. It writes one sample order and one reorder, logs in to the owner screens with the passcode from `$env:OWNER_PASSCODE` (never printed or saved), checks its orders are flagged as sample data, then cancels them as the owner so they use no capacity. It prints PASS, FAIL or SKIP per step and a summary such as `16 passed, 0 failed, 0 skipped (0 required)`. The run fails if any step fails or any required step is skipped. If the live drop is full, the first failing step says why: capacity, paid units and units in active holds.
 
    ```powershell
-   $env:OWNER_PASSCODE="<the demo passcode>"; pnpm smoke --url https://<your-app>.vercel.app; Remove-Item Env:OWNER_PASSCODE
+   $env:OWNER_PASSCODE="<the demo passcode>"; pnpm smoke --url https://goodcane.vercel.app; Remove-Item Env:OWNER_PASSCODE
    ```
 
 6. **Reseed** (step 4's seed command again) to remove the cancelled smoke test orders for good and reset the live drop to about 30 paid and 10 requested units. Every walk through the deployed demo that pays an order also uses the live drop's spaces, so reseed before a demo or review.
