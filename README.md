@@ -2,9 +2,9 @@
 
 - **Live demo:** https://goodcane.vercel.app
 - **Try as a returning customer:** https://goodcane.vercel.app/c/DemoCustomerA-GoodCaneDrops-sampleLink-0001
-- **Owner view:** https://goodcane.vercel.app/owner/login (needs the demo passcode given to reviewers)
+- **Owner view:** https://goodcane.vercel.app/owner/login (demo passcode: `goodcane`)
 
-A mobile-first pre-order and reorder prototype for GoodCane's bottled sugarcane drinks. Everything here is a demo: sample data, no real payments, no real messages. The full brief is in [docs/PROJECT_SPEC.md](docs/PROJECT_SPEC.md).
+A mobile-first pre-order and reorder prototype for GoodCane's bottled sugarcane drinks, with pickup at Adenta (Aviation Road), Greater Accra. Everything here is a demo: sample data, no real payments, no real messages. The full brief is in [docs/PROJECT_SPEC.md](docs/PROJECT_SPEC.md).
 
 ## Setup
 
@@ -46,7 +46,7 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 
 ## Owner screens (demo gate)
 
-- `/owner` (This drop: demand, forecast, buffer), `/owner/metrics` (pilot metrics) and `/owner/orders` (fulfil, cancel, refund-due flags) sit behind one passcode, `OWNER_PASSCODE`. Each valid login gets a random session token in an HttpOnly cookie, `gc_owner`; only its hash is stored, and it lasts 12 hours. The customer cookie never opens these screens.
+- `/owner` (This drop: demand, forecast, buffer), `/owner/metrics` (pilot metrics), `/owner/orders` (fulfil, cancel, refund-due flags), `/owner/close` (Close batch: units made, unplanned sold and wasted after a drop), `/owner/reminders` and `/owner/customers` sit behind one passcode, `OWNER_PASSCODE`. Each valid login gets a random session token in an HttpOnly cookie, `gc_owner`; only its hash is stored, and it lasts 12 hours. The customer cookie never opens these screens.
 - After 5 wrong passcodes from one IP within 15 minutes, that IP gets "Too many attempts" (429) until the oldest of those failures is more than 15 minutes old. Only a hash of the IP and the time are kept, for 24 hours.
 - **This is a demo gate, not real authentication.** A live service needs proper owner accounts (individual logins, password reset, ideally two-factor). See `TRUST_PROXY` below for where the client address comes from.
 - **`TRUST_PROXY`** (default `false`). When `false`, the lockout counts attempts against the address of the connection. On Vercel every request arrives from Vercel's own servers, so set it to `true` there: the lockout then reads the client address from `x-vercel-forwarded-for`, which Vercel sets itself. Other forwarded headers such as `X-Forwarded-For` are ignored in both modes, because any client can fill them in. Do not set it to `true` anywhere else, or clients could choose their own address by sending that header.
@@ -56,11 +56,11 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 
 - `/manage` (C9): order history, **Cancel this order** before cut-off (paid orders get refund due), reminder settings with **Stop reminders** and **Resubscribe** (only here, BR-R8), and **Delete my data now** (BR-DP2). It works only with this phone's session, which the private link creates; never by phone number.
 - `/link-invalid` and the home page (for a phone with no session) offer **Lost your link? Message GoodCane**: a prefilled chat to `DEMO_WHATSAPP_NUMBER` asking for the first name only, or the text to copy when that is empty.
-- **A completely full drop** (C2): "How many bottles did you want?" with **Join {next drop}** and **No thanks, just let GoodCane know**. Either records a `drop_full` turned-away row (no order, hold or customer); only Join moves to the next drop. One row per drop per browser (the key is kept in localStorage). Needs migration 0005: run `pnpm db:migrate` on Supabase **before** deploying this code.
+- **A completely full drop** (C2): "How many bottles did you want?" with **Join {next drop}** and **No thanks, just let GoodCane know**. Either records a `drop_full` turned-away row (no order, hold or customer); only Join moves to the next drop. One row per drop per browser (the key is kept in localStorage).
 - `/about` (C0): what is real and simulated, the assumptions, data practices and the forecast honesty note. Linked from the footer.
 - **Try as a returning customer:** https://goodcane.vercel.app/c/DemoCustomerA-GoodCaneDrops-sampleLink-0001 opens "Same again?" as **Demo Customer A**, a sample customer with a past usual order, opted in to reminders. It exists only when the seed runs in demo mode, and every reseed rebuilds it. **Delete my data now** or the owner's **Send new link** on this customer kills the link until the next reseed. This is the one exception to "the private link is shown once" (spec BR-L4).
 - `/owner/customers` (O7): masked phones, search by first name, and **Send new link**, which revokes the old link and shows the new one once.
-- `/owner/reminders` (O5): the reminder queue for the next drop, built when the page is opened (no cron). **Due now** from 2 days before cut-off; **Coming up** before that, with **Send early (demo)** in demo mode only. Send opens a prefilled chat with a fresh `/r/<token>` link that works until that drop's cut-off, and marks the reminder sent: one per customer per drop. The 24-hour confirm nudge (BR-R6) is designed, not built.
+- `/owner/reminders` (O5): the reminder queue for the next drop, built when the page is opened (no cron). Reminders are WhatsApp only. **Due now** from 2 days before cut-off; **Coming up** before that, with **Send early (demo)** in demo mode only. Send shows the message with a fresh `/r/<token>` link that works until that drop's cut-off, with **Copy text** and, when `DEMO_WHATSAPP_NUMBER` is set, **Open WhatsApp chat**; it marks the reminder sent: one per customer per drop. The 24-hour confirm nudge (BR-R6) is designed, not built.
 
 ## Known limitations
 
@@ -88,12 +88,12 @@ Locally, the app, migrations and the seed read the plain names from `.env`. On V
 | `DATABASE_POOL_MODE` | (not needed) | `transaction` forces pooled settings; used to test them locally | Test runs only | Not set (port 6543 already means pooled) |
 | `DEMO_MODE` | `NUXT_PUBLIC_DEMO_MODE` | Flags every row the app creates as sample data | `.env`; Vercel | `true` |
 | `DEMO_WHATSAPP_NUMBER` | `NUXT_DEMO_WHATSAPP_NUMBER` | The only number a wa.me link may use; empty hides the button | `.env`; Vercel | Empty |
-| `OWNER_PASSCODE` | `NUXT_OWNER_PASSCODE` | The demo owner gate | `.env`; Vercel; `$env` for the smoke test | A demo passcode for reviewers (see below) |
+| `OWNER_PASSCODE` | `NUXT_OWNER_PASSCODE` | The demo owner gate | `.env`; Vercel; `$env` for the smoke test | `goodcane` (demo only, shown to reviewers) |
 | `TRUST_PROXY` | `NUXT_TRUST_PROXY` | Read the client address from `x-vercel-forwarded-for` for the login limit | `.env` (false); Vercel | `true` (Vercel only) |
 | `APP_URL` | `NUXT_PUBLIC_APP_URL` | Base of private links (`/c/<token>`) | `.env`; Vercel | `https://goodcane.vercel.app` |
 | `TEST_DATABASE_URL` | (not on Vercel) | Integration and API tests; name must end in `_test` | `.env` | Not deployed |
 
-**OWNER_PASSCODE is a demo passcode shown to reviewers.** Never use a password you use anywhere else.
+**The live demo's owner passcode is `goodcane`.** It is a demo passcode, published on purpose for reviewers. Never use a password you use anywhere else.
 
 ## Deployment (Vercel and Supabase)
 
@@ -146,7 +146,7 @@ What stays correct, and why:
 
 - Sample data only: drinks, prices, dates, delivery areas and customers are made up, and payment is a simulation.
 - The owner gate is one shared demo passcode, not owner accounts.
-- The private link travels in the URL path and can appear in hosting logs (see Privacy below).
+- The private link travels in the URL path and can appear in hosting logs (see Privacy and the private link above).
 - Rate limiting depends on the Vercel WAF rule above; without it, anyone can create many sample orders (each session is capped at 3 unpaid ones).
 - No reminders are ever sent, and the deployed demo shows no WhatsApp button (`NUXT_DEMO_WHATSAPP_NUMBER` is empty).
 - One region (`dub1`) and one small database: fine for reviewers, not sized for real traffic.
