@@ -239,12 +239,12 @@ The Demo data button (constraint 8) appears on all pages. Mobile first: single c
 
 | # | Screen | Contents | Priority |
 |---|---|---|---|
-| O1 | **This drop (demand view)** | Paid versus Requested tiers in different colours, projection and range, buffer setting, suggested production, spaces left, turned-away units, planned share, cut-off countdown. Also: "Booked so far, by flavour" (paid and likely per flavour, lapsed requests excluded; the forecast is a total, not per flavour) and a compact "Pilot metrics" block with the four required numbers. Everything is in **units** (1 unit = one 330ml bottle; larger sizes count as more, per `capacity_weight`). For the open drop, planned share reads "45 of 60 expected units pre-ordered (estimate)", expected being suggested production; finished drops show the exact BR-FC12 figure | P0 |
+| O1 | **This drop (demand view)** | Paid versus Requested tiers in different colours, projection and range, buffer setting, suggested production, spaces left, turned-away units, planned share, cut-off countdown. Also: "Booked so far, by flavour" (paid and likely per flavour, lapsed requests excluded; the forecast is a total, not per flavour). The pilot metrics are on O6, not here (decision 24 Oct 2026). Everything is in **units** (1 unit = one 330ml bottle; larger sizes count as more, per `capacity_weight`). For the open drop, planned share reads "45 of 60 expected units pre-ordered (estimate)", expected being suggested production; finished drops show the exact BR-FC12 figure | P0 |
 | O2 | **Orders** | Filter by drop and status, mark fulfilled, cancel, refund-due flag | P0 |
 | O3 | **Close batch** | Rule set 5.10 | P1 |
 | O4 | **Settings** | All sample values in 5.1 and the confirmation mode, menu and prices, delivery areas and fees | P1 |
 | O5 | **Reminder queue** | Next drop: Due now and Coming up (BR-R4), first name, masked phone, channel, frequency; one-chase rule; Send opens prefilled chat with a fresh reminder link and marks sent; "Send early (demo)" on Coming up in DEMO_MODE only; 24-hour nudge designed, not built (BR-R6) | P1 |
-| O6 | **Metrics** | Planned share trend, weekly confirmed orders, repeat-order rate, cancellations and expiries, payment completion rate, forecast versus actual with naive benchmark | P2 (the four required metrics must still exist as numbers on O1 or O6) |
+| O6 | **Metrics** (`/owner/metrics`) | The four required pilot metrics with the honesty note (P0). Later: planned share trend, payment completion rate, forecast versus actual per drop | P0 for the four required metrics, P2 for the rest |
 | O7 | **Customers** | Masked phones, search by first name, Send new link (shown once, with the hint "Check the last 3 digits against the number that messaged you"), delete (not built: deletion is the customer's, on C9) | P2 |
 
 ### 6.3 C7 "Same again?" acceptance criteria (must all pass)
@@ -407,7 +407,7 @@ Unit tests (Vitest) with the fixtures in this spec:
 
 A feature is done when: it works on a 360px phone, handles loading, empty and error states, has tests for its business rules, matches the spec, and the DEMO labelling is intact.
 
-Priority order: finish C1 to C7 and O1 and O2 first (P0). Cut order when behind: O6 metrics page, waitlist, delivery layer, Send new link, then the reminder queue.
+Priority order: finish C1 to C7 and O1 and O2 first (P0). Cut order when behind: O6 metrics beyond the four required, waitlist, delivery layer, Send new link, then the reminder queue.
 
 ## 12. Demo video storyboard (about 3 minutes)
 1. Customer A scans the bottle QR card, picks a flavour, pays in the demo, saves the link, opts in to reminders (C1 to C6).

@@ -27,7 +27,7 @@ Where each rubric line is shown in the prototype: screens, rules (from [PROJECT_
 
 | What | Where |
 |---|---|
-| O1 This drop: Paid and Likely tiers, projection and range, buffer, suggested production, spaces left, turned away, planned share, by flavour, pilot metrics | BR-FC1 to FC12; `app/pages/owner/index.vue`; `server/services/owner/demand.ts`; `server/domain/forecast/*` |
+| O1 This drop: Paid and Likely tiers, projection and range, buffer, suggested production, spaces left, turned away, planned share, by flavour | BR-FC1 to FC12; `app/pages/owner/index.vue`; `server/services/owner/demand.ts`; `server/domain/forecast/*` |
 | O2 Orders: filter, mark fulfilled, cancel with refund due | BR-O3, BR-O4; `app/pages/owner/orders.vue`; `server/services/owner/orders.ts` |
 | O3 Close batch: made, unplanned, wasted, identity warning, exact planned share afterwards | BR-B1 to B4; `app/pages/owner/close.vue`; `server/domain/batch/close.ts`; `server/services/owner/close-batch.ts` |
 | O5 Reminder queue: who is due for the next drop, one chase per drop, Send with a fresh reminder link | BR-R3 to R7, BR-L5; `app/pages/owner/reminders.vue`; `server/services/reminders-queue.ts` |
@@ -50,7 +50,7 @@ Where each rubric line is shown in the prototype: screens, rules (from [PROJECT_
 | What | Where |
 |---|---|
 | Metric formulas, pilot size and length, draft continue and stop thresholds, threats to validity | Spec section 10 (summary only; the full plan is deliverable 4, not in the repository) |
-| The four required metrics as numbers: repeat-order rate, confirmed weekly orders, cancellation rate (with expiry rate), forecast accuracy (MAPE, WAPE, bias, naive benchmark, scored drops) | "Pilot metrics" on O1: `app/components/owner/PilotMetrics.vue`, `server/services/owner/metrics.ts` |
+| The four required metrics as numbers: repeat-order rate, confirmed weekly orders, cancellation rate (with expiry rate), forecast accuracy (MAPE, WAPE, bias, naive benchmark, scored drops) | O6 Metrics: `app/pages/owner/metrics.vue`, `app/components/owner/PilotMetrics.vue`, `server/services/owner/metrics.ts` |
 | Planned share, exact once a batch is closed | BR-FC12; O1 and O3 |
 | Forecast scored fairly: snapshots as of the checkpoint, like-for-like demand units | BR-FC10, BR-FC11; `server/domain/forecast/snapshot.ts`, `server/services/owner/snapshots.ts` |
 | Tests | `unit/forecast/forecast.test.ts` (spec fixtures: 48.6 baseline, MAPE about 8.9%), `unit/forecast/snapshot.test.ts`, `integration/demand.test.ts` |
@@ -72,11 +72,11 @@ Where each rubric line is shown in the prototype: screens, rules (from [PROJECT_
 
 ## Built versus designed
 
-**Built:** C0 to C9 and O1, O2, O3, O5, O7 (O7 without delete); simulated payment with holds; private and reminder links; reminder consent and queue; Delete my data now; `pnpm seed`, `pnpm smoke` and `pnpm retention`; Demo Customer A.
+**Built:** C0 to C9 and O1, O2, O3, O5, O6 (the four required metrics only), O7 (O7 without delete); simulated payment with holds; private and reminder links; reminder consent and queue; Delete my data now; `pnpm seed`, `pnpm smoke` and `pnpm retention`; Demo Customer A.
 
 **Designed, not built:**
 - O4 Settings (sample values are fixed in `server/db/settings-defaults.ts`; only the buffer setting can be changed, on O1).
-- O6 Metrics page (the four required metrics are on O1; payment completion rate, reminder to reorder, median days between orders and waste rate are not shown).
+- The rest of O6 Metrics: payment completion rate, reminder to reorder, median days between orders and waste rate are not shown.
 - Reminder opt-out rate next to the cancellation rate (spec section 10).
 - Waitlist (BR-F3) and the short undo after cancelling (BR-X4).
 - "By owner" confirmation mode (BR-O7): the setting exists, the path does not.

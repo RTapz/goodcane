@@ -1,4 +1,4 @@
-// The four required pilot metrics (spec section 10, O6 note), shown on O1.
+// The four required pilot metrics (spec section 10), shown on O6.
 // Built from the same drop facts as O1, so the numbers always agree with it.
 import { bias, mape, wape, type ForecastPair, type Maybe, type Score } from '../../domain/forecast'
 import type { Db } from '../../db/client'

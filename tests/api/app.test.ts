@@ -713,6 +713,12 @@ describe('owner gate over HTTP (spec 8)', () => {
     expect((await fetch('/api/owner/session', { headers: { cookie } })).status).toBe(401)
   })
 
+  it('O6: the pilot metrics are on /owner/metrics, not on This drop', async () => {
+    const cookie = await ownerCookie()
+    expect(await (await fetch('/owner/metrics', { headers: { cookie } })).text()).toContain('Repeat-order rate')
+    expect(await (await fetch('/owner', { headers: { cookie } })).text()).not.toContain('Repeat-order rate')
+  })
+
   it('O7: masked phones only, and Send new link replaces the customer\'s link (BR-L6)', async () => {
     // A customer who paid and got a private link.
     const next = nextDropResponse.parse(await $fetch('/api/drops/next'))

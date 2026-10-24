@@ -2,7 +2,6 @@
 // O1 "This drop": the demand view (spec 5.9, 6.2). All numbers are in units (BR-C1).
 // The arithmetic is on the server; this page only shows it.
 import type { DropDemand } from '~~/server/services/owner/demand'
-import type { PilotMetrics } from '~~/server/services/owner/metrics'
 
 definePageMeta({ middleware: 'owner' })
 useHead({ title: 'This drop (owner) | GoodCane Drops' })
@@ -30,7 +29,6 @@ const { data: demand, status: demandStatus, refresh: refreshDemand } = await use
   () => `/api/owner/drop/${selected.value}/demand`,
   { key: 'owner-demand', immediate: !!selected.value, watch: [selected] }
 )
-const { data: metricsBody } = await useFetch<{ metrics: PilotMetrics | null }>('/api/owner/metrics', { key: 'owner-metrics' })
 
 const loading = computed(() => dropsStatus.value === 'pending' || (demandStatus.value === 'pending' && !demand.value))
 const failed = computed(() => dropsStatus.value === 'error' || demandStatus.value === 'error')
@@ -213,8 +211,6 @@ const weightsText = computed(() => (demand.value?.unitWeights ?? []).map((w) => 
       <p class="mt-4 text-sm text-ink-muted">
         1 unit = one 330ml bottle; larger sizes count as more{{ weightsText ? ` (${weightsText})` : '' }}.
       </p>
-
-      <OwnerPilotMetrics v-if="metricsBody?.metrics" class="mt-4" :metrics="metricsBody.metrics" />
     </template>
   </div>
 </template>
