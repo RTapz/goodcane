@@ -34,7 +34,7 @@ Needs Node 22 or newer, pnpm and PostgreSQL.
 
 ## Sample data (`pnpm seed`)
 
-- Runs in one transaction: deletes every `is_sample` row, re-adds the 12 owner settings, inserts 8 completed drops, a live drop, a further open drop, 40 sample customers, orders, payments, reminders and consent events, then verifies the result. If any check fails, everything is rolled back.
+- Runs in one transaction: deletes every `is_sample` row, re-adds the 12 owner settings, inserts 8 completed drops, a live drop, a further open drop, then empty Tuesday and Friday drops whose cut-offs cover the next year, 40 sample customers, orders, payments, reminders and consent events, then verifies the result. If any check fails, everything is rolled back.
 - Uses a fixed random seed. Two runs in the same hour give identical data. Set `SEED_NOW` (an ISO date) to reproduce an exact run.
 - **Seed dates ignore the `drop_days` setting on purpose.** They are relative to now, so the demo always has a live drop about 3 days before cut-off, whatever day you run it.
 - Forecast snapshots for the finished drops are written with the same function the owner screen uses, so the accuracy metric has scored drops from the start.

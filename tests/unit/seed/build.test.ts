@@ -3,6 +3,8 @@ import {
   buildSampleData,
   CAPPED_DROP_CAPACITY,
   SAMPLE_CUSTOMER_COUNT,
+  SCHEDULE_HORIZON_DAYS,
+  scheduledDropAts,
   SEED,
   type SampleData
 } from '../../../server/db/seed/build'
@@ -43,13 +45,29 @@ describe.each([
     expect(build(pickDay)).toEqual(data)
   })
 
-  it('creates 8 completed drops and 2 open ones, all dated relative to now', () => {
+  it('creates 8 completed drops, the live and further drops, then Tuesday and Friday drops for a year', () => {
     expect(completed).toHaveLength(8)
-    expect(open).toHaveLength(2)
-    const [live, further] = open
+    const [live, further, ...scheduled] = open
     expect(live?.cutOffAt.getTime()).toBe(now.getTime() + 3 * DAY)
     expect(live?.dropAt.getTime()).toBe(now.getTime() + 6 * DAY)
     expect(further?.dropAt.getTime()).toBe(now.getTime() + 10 * DAY)
+    expect(scheduled.map((d) => d.dropAt.getTime())).toEqual(
+      scheduledDropAts(further!.dropAt, now, 3, ['tuesday', 'friday']).map((d) => d.getTime())
+    )
+    expect(scheduled.length).toBeGreaterThan(100)
+    const horizon = now.getTime() + SCHEDULE_HORIZON_DAYS * DAY
+    expect(scheduled.at(-1)!.cutOffAt.getTime()).toBeGreaterThanOrEqual(horizon)
+    expect(scheduled.at(-2)!.cutOffAt.getTime()).toBeLessThan(horizon)
+    const orderIds = new Set(data.orders.map((o) => o.dropId))
+    for (const drop of scheduled) {
+      expect([2, 5]).toContain(drop.dropAt.getUTCDay())
+      expect(drop.cutOffAt.getTime()).toBe(drop.dropAt.getTime() - 3 * DAY)
+      expect(drop.capacity).toBe(70)
+      expect(drop.unitsMade).toBeNull()
+      expect(orderIds.has(drop.id)).toBe(false)
+    }
+    expect(new Set(data.drops.map((d) => d.id)).size).toBe(data.drops.length)
+    expect(new Set(data.drops.map((d) => d.dropAt.getTime())).size).toBe(data.drops.length)
     for (const drop of completed) {
       expect(drop.dropAt.getTime()).toBeLessThan(now.getTime())
     }

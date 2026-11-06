@@ -28,10 +28,71 @@ export const REPEAT_CUSTOMER_COUNT = 16 // about 40% order on several drops
 export const COMPLETED_DROP_COUNT = 8
 export const DEFAULT_CAPACITY = settingsDefaults.capacity
 export const CAPPED_DROP_CAPACITY = 50
+/** Open drops are scheduled until one cut-off is at least this far ahead, so a reseed keeps the demo orderable for a year. */
+export const SCHEDULE_HORIZON_DAYS = 365
 
 const MINUTE = 60 * 1000
 const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
+
+const WEEKDAY_INDEX: Record<string, number> = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6
+}
+
+/**
+ * Tuesday and Friday drop times (the `drop_days` setting) strictly after `after`,
+ * at the same clock time as `now`. Accra has no daylight saving, so the UTC weekday is the local one.
+ * Stops once a drop's cut-off is at least `SCHEDULE_HORIZON_DAYS` after `now`.
+ */
+export function scheduledDropAts(
+  after: Date,
+  now: Date,
+  leadTimeDays: number,
+  dropDays: readonly string[]
+): Date[] {
+  const wanted = new Set(
+    dropDays.map((day) => {
+      const index = WEEKDAY_INDEX[day]
+      if (index === undefined) {
+        throw new RangeError(`unknown drop day: ${day}`)
+      }
+      return index
+    })
+  )
+  if (wanted.size === 0) {
+    throw new RangeError('drop_days must name at least one weekday')
+  }
+
+  const horizon = now.getTime() + SCHEDULE_HORIZON_DAYS * DAY
+  const dates: Date[] = []
+  let day = Date.UTC(after.getUTCFullYear(), after.getUTCMonth(), after.getUTCDate())
+  const limit = horizon + 14 * DAY
+  while (day <= limit) {
+    const dropAt = new Date(day)
+    dropAt.setUTCHours(now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds(), now.getUTCMilliseconds())
+    day += DAY
+    if (dropAt.getTime() <= after.getTime() || !wanted.has(dropAt.getUTCDay())) {
+      continue
+    }
+    dates.push(dropAt)
+    if (dropAt.getTime() - leadTimeDays * DAY >= horizon) {
+      return dates
+    }
+  }
+  throw new Error('scheduled drops never reached the horizon')
+}
+
+/** Stable id from the drop time, so these rows do not draw on the sample random sequence. */
+function scheduledDropId(dropAt: Date): string {
+  const hex = dropAt.getTime().toString(16).padStart(12, '0').slice(-12)
+  return `a1000000-0000-4000-8000-${hex}`
+}
 
 type WithId<T> = T & { id: string }
 export type DropRow = WithId<typeof drops.$inferInsert>
@@ -649,9 +710,26 @@ export function buildSampleData({ rand, now, pickDay = defaultPickDay, demoCusto
     .filter((c) => c.lastActiveAt > 0)
     .map((c) => ({ ...c.row, lastActiveAt: new Date(c.lastActiveAt) }))
 
-  // Forecast snapshots last, so their ids do not shift any other row's.
+  // Forecast snapshots last among the random rows, so their ids do not shift any other row's.
 
   data.forecastSnapshots = buildSnapshots(data, settingsDefaults.forecast_checkpoint_days, newId)
+
+  // Empty open drops on the owner's weekdays, after the live and further drops.
+  // Their ids are not random, so reseeding still rebuilds the same customers and orders.
+  for (const dropAt of scheduledDropAts(furtherDropAt, now, leadTimeDays, settingsDefaults.drop_days)) {
+    data.drops.push({
+      id: scheduledDropId(dropAt),
+      dropAt,
+      cutOffAt: getCutOff(dropAt, leadTimeDays),
+      capacity: DEFAULT_CAPACITY,
+      status: 'open',
+      unitsMade: null,
+      unplannedSold: null,
+      unitsWasted: null,
+      closedAt: null,
+      isSample: true
+    })
+  }
 
   return data
 }
